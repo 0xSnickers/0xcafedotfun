@@ -136,7 +136,7 @@ npm run dev
 ## 🛠️ 技术栈
 
 ### 智能合约
-- **Solidity 0.8.19**: 最新稳定版本
+- **Solidity 0.8.29**: 最新稳定版本
 - **Foundry**: 开发和测试框架
 - **OpenZeppelin**: 安全的合约库
 
@@ -209,12 +209,6 @@ const generateVanityAddress = async (prefix: string) => {
 | 活跃用户 | 链上数据 |
 | 成功率 | 计算得出 |
 
-## 🌍 网络支持
-
-- **以太坊主网** (chainId: 1)
-- **Sepolia 测试网** (chainId: 11155111)
-- **本地开发网络** (chainId: 31337)
-
 ## 📱 用户指南
 
 ### 创建代币流程
@@ -234,9 +228,6 @@ const generateVanityAddress = async (prefix: string) => {
 4. **执行交易** → 买入或卖出代币
 5. **实时更新** → 自动刷新余额和价格
 
-## 🤝 贡献指南
-
-我们欢迎社区贡献！请查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详情。
 
 ### 开发流程
 
@@ -255,23 +246,3 @@ git push origin feature/amazing-feature
 
 # 5. 创建 Pull Request
 ```
-
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
-
-## 🙏 致谢
-
-- [OpenZeppelin](https://openzeppelin.com/) - 安全的智能合约库
-- [Foundry](https://github.com/foundry-rs/foundry) - 智能合约开发框架
-- [Next.js](https://nextjs.org/) - React 全栈框架
-- [RainbowKit](https://www.rainbowkit.com/) - Web3 钱包连接
-- [Ant Design](https://ant.design/) - UI 组件库
-
----
-
-**🎉 0xcafe.fun - 让每个人都能轻松创造下一个爆款 MEME 代币！**
-
-[![Twitter](https://img.shields.io/badge/Twitter-@0xcafefun-1DA1F2?style=flat&logo=twitter&logoColor=white)](https://twitter.com/0xcafefun)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Community-7289DA?style=flat&logo=discord&logoColor=white)](https://discord.gg/0xcafefun)
-[![GitHub](https://img.shields.io/badge/GitHub-Star%20Repository-black?style=flat&logo=github)](https://github.com/0xcafedotfun)
