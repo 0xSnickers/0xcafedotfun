@@ -4,7 +4,7 @@
 
 ![Platform Preview](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-14-black)
-![Solidity](https://img.shields.io/badge/Solidity-0.8.19-blue)
+![Solidity](https://img.shields.io/badge/Solidity-0.8.29-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
 
 ## ✨ 核心特性
