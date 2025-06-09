@@ -1,4 +1,4 @@
-# CA MEME Platform
+# 0xcafe.fun MEME Platform
 
 一个基于 Create2 的 MEME 代币发射平台，支持预计算合约地址部署。
 
