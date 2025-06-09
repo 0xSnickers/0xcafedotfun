@@ -1,0 +1,567 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* 暗色主题的交易页面样式 */
+.dark-input .ant-input-number,
+.dark-input .ant-input-number:hover,
+.dark-input .ant-input-number:focus,
+.dark-input .ant-input-number-focused {
+  background-color: rgba(51, 65, 85, 0.5) !important;
+  border-color: rgba(100, 116, 139, 0.6) !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-input .ant-input-number-handler-wrap {
+  background-color: rgba(51, 65, 85, 0.7) !important;
+}
+
+.dark-input .ant-input-number-handler {
+  border-color: rgba(100, 116, 139, 0.6) !important;
+  color: #cbd5e1 !important;
+}
+
+.dark-input .ant-input-number-handler:hover {
+  background-color: rgba(71, 85, 105, 0.7) !important;
+}
+
+.dark-input .ant-input-group-addon {
+  background-color: rgba(51, 65, 85, 0.7) !important;
+  border-color: rgba(100, 116, 139, 0.6) !important;
+  color: #cbd5e1 !important;
+}
+
+/* 暗色主题的 Tabs */
+.dark-tabs .ant-tabs-nav::before {
+  border-bottom-color: rgba(100, 116, 139, 0.3) !important;
+}
+
+.dark-tabs .ant-tabs-tab {
+  color: rgba(203, 213, 225, 0.7) !important;
+}
+
+.dark-tabs .ant-tabs-tab:hover {
+  color: #60a5fa !important;
+}
+
+.dark-tabs .ant-tabs-tab-active {
+  color: #60a5fa !important;
+}
+
+.dark-tabs .ant-tabs-ink-bar {
+  background-color: #60a5fa !important;
+}
+
+.dark-tabs .ant-tabs-content-holder {
+  background-color: transparent !important;
+}
+
+/* 暗色主题的 Alert */
+.ant-alert-info.bg-blue-900\/20 {
+  background-color: rgba(30, 58, 138, 0.2) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.ant-alert-info.bg-blue-900\/20 .ant-alert-message,
+.ant-alert-info.bg-blue-900\/20 .ant-alert-description {
+  color: #bfdbfe !important;
+}
+
+.ant-alert-warning.bg-yellow-900\/20 {
+  background-color: rgba(120, 113, 4, 0.2) !important;
+  border-color: rgba(251, 191, 36, 0.3) !important;
+}
+
+.ant-alert-warning.bg-yellow-900\/20 .ant-alert-message,
+.ant-alert-warning.bg-yellow-900\/20 .ant-alert-description {
+  color: #fef3c7 !important;
+}
+
+.ant-alert-success.bg-green-900\/20 {
+  background-color: rgba(20, 83, 45, 0.2) !important;
+  border-color: rgba(34, 197, 94, 0.3) !important;
+}
+
+.ant-alert-success.bg-green-900\/20 .ant-alert-message,
+.ant-alert-success.bg-green-900\/20 .ant-alert-description {
+  color: #bbf7d0 !important;
+}
+
+/* 特殊输入框样式 */
+.ant-input.bg-green-900\/20 {
+  background-color: rgba(20, 83, 45, 0.2) !important;
+  border-color: rgba(34, 197, 94, 0.3) !important;
+  color: #bbf7d0 !important;
+}
+
+.ant-input.bg-red-900\/20 {
+  background-color: rgba(127, 29, 29, 0.2) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+  color: #fecaca !important;
+}
+
+/* 暗色主题的搜索框 */
+.ant-input.bg-slate-700\/50 {
+  background-color: rgba(51, 65, 85, 0.5) !important;
+  border-color: rgba(100, 116, 139, 0.6) !important;
+  color: #ffffff !important;
+}
+
+.ant-input.bg-slate-700\/50::placeholder {
+  color: rgba(148, 163, 184, 0.7) !important;
+}
+
+.ant-input.bg-slate-700\/50:hover,
+.ant-input.bg-slate-700\/50:focus {
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2) !important;
+}
+
+/* 暗色主题的 Card */
+.ant-card.bg-slate-800\/50 {
+  background-color: rgba(30, 41, 59, 0.5) !important;
+  border-color: rgba(100, 116, 139, 0.3) !important;
+}
+
+.ant-card.bg-slate-800\/50 .ant-card-head {
+  border-bottom-color: rgba(100, 116, 139, 0.3) !important;
+}
+
+.ant-card.bg-slate-800\/50 .ant-card-head-title {
+  color: #ffffff !important;
+}
+
+/* 暗色主题的 Button */
+.ant-btn.bg-slate-700 {
+  background-color: rgba(51, 65, 85, 1) !important;
+  border-color: rgba(100, 116, 139, 0.6) !important;
+  color: #cbd5e1 !important;
+}
+
+.ant-btn.bg-slate-700:hover {
+  background-color: rgba(71, 85, 105, 1) !important;
+  border-color: rgba(148, 163, 184, 0.8) !important;
+  color: #e2e8f0 !important;
+}
+
+/* 暗色主题的进度条 */
+.ant-progress-inner {
+  background-color: rgba(71, 85, 105, 0.5) !important;
+}
+
+/* 暗色主题的 Statistic */
+.ant-statistic-title {
+  color: inherit !important;
+}
+
+/* 暗色主题的 List */
+.ant-list-item:hover {
+  background-color: transparent !important;
+}
+
+/* 暗色主题的 Empty */
+.ant-empty {
+  color: #94a3b8 !important;
+}
+
+.ant-empty .ant-empty-description {
+  color: inherit !important;
+}
+
+/* 修复暗色主题下的文本颜色 */
+.ant-typography {
+  color: inherit !important;
+}
+
+/* 暗色主题的分割线 */
+.ant-divider.border-slate-600 {
+  border-color: rgba(100, 116, 139, 0.6) !important;
+}
+
+/* 暗色主题的 Spin */
+.ant-spin {
+  color: inherit !important;
+}
+
+.ant-spin .ant-spin-text {
+  color: inherit !important;
+}
+
+/* 钱包下拉菜单样式 */
+.wallet-dropdown .ant-dropdown-menu {
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2) !important;
+  padding: 8px !important;
+  min-width: 280px !important;
+}
+
+.wallet-dropdown .ant-dropdown-menu-item-group-title {
+  color: #94a3b8 !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  padding: 8px 12px 4px 12px !important;
+  margin: 0 !important;
+}
+
+.wallet-dropdown .ant-dropdown-menu-item {
+  background: transparent !important;
+  color: #e2e8f0 !important;
+  border-radius: 12px !important;
+  margin: 2px 0 !important;
+  padding: 0 !important;
+  transition: all 0.2s ease !important;
+}
+
+.wallet-dropdown .ant-dropdown-menu-item:hover {
+  background: rgba(71, 85, 105, 0.3) !important;
+  color: #ffffff !important;
+}
+
+.wallet-dropdown .ant-dropdown-menu-item-divider {
+  background-color: rgba(100, 116, 139, 0.3) !important;
+  margin: 8px 0 !important;
+}
+
+.wallet-dropdown .ant-dropdown-menu-item .ant-btn {
+  color: inherit !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.wallet-dropdown .ant-dropdown-menu-item .ant-btn:hover {
+  color: #fecaca !important;
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* 钱包按钮样式增强 */
+.ant-btn.wallet-button {
+  height: auto !important;
+  padding: 8px 16px !important;
+  background: linear-gradient(135deg, rgba(51, 65, 85, 0.8) 0%, rgba(30, 41, 59, 0.8) 100%) !important;
+  border: 1px solid rgba(100, 116, 139, 0.5) !important;
+  color: #ffffff !important;
+  backdrop-filter: blur(10px) !important;
+  transition: all 0.3s ease !important;
+}
+
+.ant-btn.wallet-button:hover {
+  background: linear-gradient(135deg, rgba(71, 85, 105, 0.8) 0%, rgba(51, 65, 85, 0.8) 100%) !important;
+  border-color: rgba(148, 163, 184, 0.7) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 钱包连接按钮样式 */
+.ant-btn-primary.wallet-connect {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.ant-btn-primary.wallet-connect:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 25px 0 rgba(59, 130, 246, 0.4) !important;
+}
+
+/* 紧凑型交易标签页 */
+.compact-tabs .ant-tabs-nav {
+  margin-bottom: 12px !important;
+}
+
+.compact-tabs .ant-tabs-tab {
+  padding: 6px 12px !important;
+  margin: 0 4px !important;
+  font-size: 13px !important;
+}
+
+.compact-tabs .ant-tabs-content-holder {
+  padding: 0 !important;
+}
+
+.compact-tabs .ant-tabs-tabpane {
+  padding: 0 !important;
+}
+
+/* 代币信息卡片增强样式 */
+.token-info-card {
+  transition: all 0.3s ease !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.token-info-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 数据网格卡片样式 */
+.data-grid-card {
+  transition: all 0.3s ease !important;
+  backdrop-filter: blur(5px) !important;
+}
+
+.data-grid-card:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 进度条增强样式 */
+.enhanced-progress .ant-progress-bg {
+  background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 50%, #10b981 100%) !important;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important;
+}
+
+/* 渐变边框效果 */
+.gradient-border {
+  position: relative !important;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(16, 185, 129, 0.1)) !important;
+  border: 1px solid transparent !important;
+}
+
+.gradient-border::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  padding: 1px !important;
+  background: linear-gradient(135deg, #3b82f6, #10b981) !important;
+  border-radius: inherit !important;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0) !important;
+  mask-composite: exclude !important;
+}
+
+/* 数据标签增强 */
+.data-label {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%) !important;
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+  backdrop-filter: blur(5px) !important;
+}
+
+/* 悬浮效果增强 */
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4) !important;
+  border-color: rgba(59, 130, 246, 0.6) !important;
+}
+
+/* 代币列表项样式 */
+.token-list-item {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  backdrop-filter: blur(8px) !important;
+  min-height: 48px !important;
+}
+
+.token-list-item:hover {
+  transform: translateY(-1px) scale(1.01) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12) !important;
+}
+
+.token-list-item.selected {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%) !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2), 0 6px 20px rgba(59, 130, 246, 0.12) !important;
+}
+
+/* 紧凑型代币项 */
+.compact-token-item {
+  padding: 8px 12px !important;
+  margin: 2px 0 !important;
+  border-radius: 8px !important;
+}
+
+/* 小尺寸标签 */
+.mini-tag {
+  font-size: 9px !important;
+  line-height: 1.2 !important;
+  padding: 1px 4px !important;
+  border-radius: 4px !important;
+}
+
+/* 价格标签增强 */
+.price-tag {
+  font-variant-numeric: tabular-nums !important;
+  letter-spacing: -0.025em !important;
+}
+
+/* 紧凑型复制按钮 */
+.compact-copy-btn {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.compact-copy-btn .anticon {
+  font-size: 12px !important;
+}
+
+/* 暗色主题表格样式 */
+.dark-table .ant-table {
+  background: transparent !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-table .ant-table-thead > tr > th {
+  background: rgba(51, 65, 85, 0.5) !important;
+  border-bottom: 1px solid rgba(100, 116, 139, 0.3) !important;
+  color: #cbd5e1 !important;
+  font-weight: 600 !important;
+}
+
+.dark-table .ant-table-tbody > tr > td {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(100, 116, 139, 0.2) !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-table .ant-table-tbody > tr:hover > td {
+  background: rgba(71, 85, 105, 0.3) !important;
+}
+
+.dark-table .ant-pagination {
+  color: #cbd5e1 !important;
+}
+
+.dark-table .ant-pagination-item {
+  background: rgba(51, 65, 85, 0.5) !important;
+  border: 1px solid rgba(100, 116, 139, 0.3) !important;
+  color: #cbd5e1 !important;
+}
+
+.dark-table .ant-pagination-item:hover {
+  background: rgba(71, 85, 105, 0.5) !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+}
+
+.dark-table .ant-pagination-item-active {
+  background: rgba(59, 130, 246, 0.2) !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  color: #60a5fa !important;
+}
+
+.dark-table .ant-pagination-prev,
+.dark-table .ant-pagination-next {
+  color: #cbd5e1 !important;
+}
+
+.dark-table .ant-pagination-prev:hover,
+.dark-table .ant-pagination-next:hover {
+  color: #60a5fa !important;
+}
+
+/* 动画延迟类 */
+.animation-delay-200 {
+  animation-delay: 200ms !important;
+}
+
+.animation-delay-400 {
+  animation-delay: 400ms !important;
+}
+
+.animation-delay-600 {
+  animation-delay: 600ms !important;
+}
+
+/* 加载动画增强 */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 2s linear infinite;
+}
+
+/* Vanity地址生成动画 */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(59, 130, 246, 0.4);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* 创建按钮加载状态 */
+.creating-loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.creating-loading::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: loading-shimmer 1.5s infinite;
+}
+
+@keyframes loading-shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}

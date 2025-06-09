@@ -1,0 +1,35 @@
+{
+  "name": "meme-platform",
+  "version": "1.0.0",
+  "description": "A MEME token platform using Create2 deployment",
+  "main": "index.js",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test",
+    "deploy:local": "forge script script/MemePlatform.s.sol:MemePlatformDeployScript --rpc-url http://localhost:8545 --broadcast",
+    "deploy:sepolia": "forge script script/MemePlatform.s.sol:MemePlatformDeployScript --rpc-url $SEPOLIA_RPC_URL --broadcast --verify",
+    "create-token": "forge script script/MemePlatform.s.sol:CreateMemeTokenScript --rpc-url $RPC_URL --broadcast",
+    "start-anvil": "anvil --host 0.0.0.0",
+    "lint": "forge fmt --check",
+    "format": "forge fmt"
+  },
+  "keywords": [
+    "meme",
+    "token",
+    "create2",
+    "ethereum",
+    "solidity",
+    "foundry"
+  ],
+  "author": "MEME Platform Team",
+  "license": "MIT",
+  "dependencies": {
+    "ethers": "^6.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+} 
