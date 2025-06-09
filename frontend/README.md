@@ -1,6 +1,6 @@
-# 🚀 CA Meme Platform - Frontend
+# 🚀 0xcafe.fun Platform - Frontend
 
-这是 CA Meme Platform 的前端应用，基于 Next.js 14、RainbowKit 和 Ant Design 构建的现代化 Web3 DApp。
+这是 0xcafe.fun Platform 的前端应用，基于 Next.js 14、RainbowKit 和 Ant Design 构建的现代化 Web3 DApp。
 
 ## ✨ 功能特性
 
@@ -94,7 +94,7 @@ frontend/
 
 ```typescript
 export const config = getDefaultConfig({
-  appName: 'CA Meme Platform',
+  appName: '0xcafe.fun Platform',
   projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID,
   chains: [
     mainnet,
@@ -210,7 +210,7 @@ npm run type-check
 
 ---
 
-**CA Meme Platform** - 让每个人都能轻松创建和交易 Meme 代币！ 🚀
+**0xcafe.fun Platform** - 让每个人都能轻松创建和交易 Meme 代币！ 🚀
 
 # 🌟 核心功能
 

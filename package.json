@@ -1,5 +1,5 @@
 {
-  "name": "meme-platform",
+  "name": "0xcafedotfun-platform",
   "version": "1.0.0",
   "description": "A MEME token platform using Create2 deployment",
   "main": "index.js",
