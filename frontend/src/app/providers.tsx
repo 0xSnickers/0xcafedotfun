@@ -14,9 +14,9 @@ import '@rainbow-me/rainbowkit/styles.css';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,
-      retry: false,
-      staleTime: Infinity,
+      refetchOnWindowFocus: false, // 页面聚焦时不重新请求
+      retry: false,               // 请求失败不自动重试
+      staleTime: Infinity,        // 缓存永不过期（一直是 fresh 数据）
     },
   },
 });

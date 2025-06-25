@@ -140,8 +140,8 @@ function TradePageContent() {
               currentPrice = formatEther(price);
             }
 
-            tokenInfos.push({
-              address: tokenAddr,
+          tokenInfos.push({
+            address: tokenAddr,
               name: info.name,
               symbol: info.symbol,
               creator: info.creator,
@@ -322,7 +322,7 @@ function TradePageContent() {
                 <div className="flex items-center justify-center space-x-2 mb-2">
                   <ThunderboltOutlined className="text-blue-400" />
                   <Text className="text-blue-300 font-medium">活跃交易</Text>
-                </div>
+              </div>
                 <Text className="text-2xl font-bold text-blue-400">
                   {activeTokens.length}
                 </Text>
@@ -335,12 +335,12 @@ function TradePageContent() {
                 <div className="flex items-center justify-center space-x-2 mb-2">
                   <TrophyOutlined className="text-yellow-400" />
                   <Text className="text-yellow-300 font-medium">已毕业</Text>
-                </div>
+          </div>
                 <Text className="text-2xl font-bold text-yellow-400">
                   {graduatedTokens.length}
-                </Text>
+                                </Text>
                 <Text className="text-slate-400 text-sm">代币</Text>
-              </div>
+                              </div>
             </Card>
 
             <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl">
@@ -348,41 +348,41 @@ function TradePageContent() {
                 <div className="flex items-center justify-center space-x-2 mb-2">
                   <RocketOutlined className="text-purple-400" />
                   <Text className="text-purple-300 font-medium">总代币</Text>
-                </div>
+                            </div>
                 <Text className="text-2xl font-bold text-purple-400">
                   {tokenList.length}
-                </Text>
+                                </Text>
                 <Text className="text-slate-400 text-sm">代币</Text>
-              </div>
-            </Card>
-          </div>
+                    </div>
+                  </Card>
+                    </div>
 
-          {/* 搜索框区域 */}
+                  {/* 搜索框区域 */}
           <div className="mb-6">
-            <Input
-              placeholder="搜索代币名称、符号或地址..."
-              prefix={<SearchOutlined className="text-slate-400" />}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+                    <Input
+                      placeholder="搜索代币名称、符号或地址..."
+                      prefix={<SearchOutlined className="text-slate-400" />}
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
               className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400"
               size="large"
-            />
-          </div>
-
+                    />
+                  </div>
+                  
           {/* 代币列表 */}
-          {loadingTokens ? (
+                    {loadingTokens ? (
             <div className="flex flex-col justify-center items-center h-64">
               <Spin size="large" />
               <Text className="text-slate-300 mt-4">加载代币列表...</Text>
-            </div>
-          ) : filteredTokens.length === 0 ? (
+                      </div>
+                    ) : filteredTokens.length === 0 ? (
             <div className="flex justify-center items-center h-64">
-              <Empty 
+                        <Empty 
                 description={<Text className="text-slate-400">暂无代币</Text>}
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
-            </div>
-          ) : (
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        />
+                      </div>
+                    ) : (
             <div className="space-y-8">
               {/* 活跃代币区域 */}
               {activeTokens.length > 0 && (
@@ -396,7 +396,7 @@ function TradePageContent() {
                       <Badge count={activeTokens.length} color="#3b82f6" />
                       <Text className="text-slate-400 text-sm ml-2">
                         (正在 Bonding Curve 交易中)
-                      </Text>
+                                  </Text>
                     </div>
                   }
                 >
@@ -417,7 +417,7 @@ function TradePageContent() {
                       <Badge count={graduatedTokens.length} color="#eab308" />
                       <Text className="text-slate-400 text-sm ml-2">
                         (已迁移至 DEX 交易)
-                      </Text>
+                              </Text>
                     </div>
                   }
                 >

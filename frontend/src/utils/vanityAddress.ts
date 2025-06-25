@@ -31,7 +31,7 @@ export const computeCreate2AddressOptimized = (
   return getCreate2Address(factory, salt, bytecodeHash);
 };
 
-// 主要的 vanity 地址生成函数
+// 主要的 vanity 地址生成函数 - 主线程版本
 export const generateVanityAddress = async (
   factoryAddress: string,
   bytecodeHash: string,
@@ -71,11 +71,20 @@ export const generateVanityAddress = async (
         };
       }
       
-      // 进度回调
-      if (i % batchSize === 0 && i > 0 && onProgress) {
+      // 进度回调 - 使用 setTimeout 避免阻塞 UI
+      if (i % batchSize === 0 && i > 0) {
         const elapsed = Date.now() - startTime;
         const rate = i / (elapsed / 1000);
+        
+        if (onProgress) {
+          // 使用微任务让 UI 有机会更新
+          await new Promise(resolve => {
+            setTimeout(() => {
         onProgress(i, rate);
+              resolve(true);
+            }, 0);
+          });
+        }
       }
     } catch (error) {
       console.warn(`地址计算失败 (${i}):`, error);
@@ -83,98 +92,4 @@ export const generateVanityAddress = async (
   }
 
   return null;
-};
-
-// Web Worker 版本（更高性能，但需要额外设置）
-export const generateVanityAddressWorker = async (
-  factoryAddress: string,
-  bytecodeHash: string,
-  options: VanityOptions
-): Promise<VanityResult | null> => {
-  return new Promise((resolve, reject) => {
-    // 检查 Web Worker 支持
-    if (typeof Worker === 'undefined') {
-      console.warn('Web Worker 不可用，使用主线程计算');
-      return generateVanityAddress(factoryAddress, bytecodeHash, options)
-        .then(resolve)
-        .catch(reject);
-    }
-
-    // 创建内联 Worker
-    const workerCode = `
-      import { keccak256, toUtf8Bytes, getCreate2Address } from "ethers";
-      
-      self.onmessage = function(e) {
-        const { factoryAddress, bytecodeHash, options } = e.data;
-        const { prefix, maxAttempts = 1000000, batchSize = 10000 } = options;
-        
-        const targetPrefix = prefix.toLowerCase();
-        const startTime = Date.now();
-        const timestamp = Date.now();
-        
-        for (let i = 0; i < maxAttempts; i++) {
-          // Salt 生成
-          const randomPart = Math.random().toString(36).substring(2);
-          const indexPart = i.toString(36);
-          const timePart = timestamp.toString(36);
-          const salt = keccak256(toUtf8Bytes(\`\${randomPart}-\${indexPart}-\${timePart}\`));
-          
-          try {
-            const address = getCreate2Address(factoryAddress, salt, bytecodeHash);
-            
-            if (address.toLowerCase().startsWith(targetPrefix)) {
-              const timeElapsed = Date.now() - startTime;
-              self.postMessage({
-                success: true,
-                result: { address, salt, attempts: i + 1, timeElapsed }
-              });
-              return;
-            }
-            
-            if (i % batchSize === 0 && i > 0) {
-              const elapsed = Date.now() - startTime;
-              const rate = i / (elapsed / 1000);
-              self.postMessage({
-                progress: true,
-                attempts: i,
-                rate: rate
-              });
-            }
-          } catch (error) {
-            // 忽略单次计算错误
-          }
-        }
-        
-        self.postMessage({ success: false, result: null });
-      };
-    `;
-
-    try {
-      const blob = new Blob([workerCode], { type: 'application/javascript' });
-      const worker = new Worker(URL.createObjectURL(blob));
-
-      worker.onmessage = (e) => {
-        const { success, result, progress, attempts, rate } = e.data;
-        
-        if (progress && options.onProgress) {
-          options.onProgress(attempts, rate);
-        } else if (success !== undefined) {
-          worker.terminate();
-          resolve(result);
-        }
-      };
-
-      worker.onerror = (error) => {
-        worker.terminate();
-        reject(error);
-      };
-
-      worker.postMessage({ factoryAddress, bytecodeHash, options });
-    } catch (error) {
-      // Fallback 到主线程
-      generateVanityAddress(factoryAddress, bytecodeHash, options)
-        .then(resolve)
-        .catch(reject);
-    }
-  });
 }; 

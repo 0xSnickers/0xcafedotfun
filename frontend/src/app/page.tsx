@@ -24,11 +24,13 @@ const { Content, Footer } = Layout;
 const { Title, Paragraph, Text } = Typography;
 
 export default function Home() {
-  const { isConnected, chain } = useAccount();
+  const { isConnected, chain, isConnecting } = useAccount();
   const [mounted, setMounted] = useState(false);
   
-  // 获取平台统计数据
-  const { stats, loading: statsLoading, error: statsError, refetch } = usePlatformStats(chain?.id);
+  // 获取平台统计数据 - 只有在连接成功或者不需要连接时才传递chainId
+  const { stats, loading: statsLoading, error: statsError, refetch } = usePlatformStats(
+    mounted ? (isConnected ? chain?.id : 1) : undefined // 默认使用主网ID进行初始化
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -39,7 +41,8 @@ export default function Home() {
     try {
       await refetch();
       message.success('数据已刷新');
-    } catch {
+    } catch (error) {
+      console.error('Refresh failed:', error);
       message.error('刷新失败');
     }
   };
@@ -109,16 +112,17 @@ export default function Home() {
               </Paragraph>
             </div>
             
-            <div className="flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-4">
+            {/* <div className="flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-4">
               <Link href="/create">
                 <Button 
                   type="primary" 
                   size="large" 
                   icon={<PlusCircleOutlined />}
-                  disabled={!isConnected}
+                  disabled={!isConnected && !isConnecting}
+                  loading={isConnecting}
                   className="h-12 px-8 text-lg font-semibold bg-gradient-to-r from-blue-600 to-blue-500 border-0 rounded-xl hover:from-blue-500 hover:to-blue-400 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
                 >
-                  创建代币
+                  {isConnecting ? '连接中...' : '创建代币'}
                 </Button>
               </Link>
               <Link href="/trade">
@@ -130,7 +134,7 @@ export default function Home() {
                   开始交易
                 </Button>
               </Link>
-            </div>
+            </div> */}
           </div>
 
           {/* 错误提示和刷新按钮 */}
@@ -277,49 +281,6 @@ export default function Home() {
               </Card>
             </Col>
           </Row>
-
-          {/* 额外统计信息 - 只在数据加载完成后显示 */}
-          {!statsLoading && !statsError && (
-            <div className="text-center mb-8">
-              <Card className="bg-slate-800/30 border-slate-700 rounded-2xl backdrop-blur-sm">
-                <Row gutter={[16, 16]} align="middle">
-                  <Col xs={24} sm={6}>
-                    <Statistic
-                      title={<span className="text-slate-400">总代币数</span>}
-                      value={formatNumber(stats.totalTokens)}
-                      valueStyle={{ color: '#60a5fa', fontSize: '18px' }}
-                    />
-                  </Col>
-                  <Col xs={24} sm={6}>
-                    <Statistic
-                      title={<span className="text-slate-400">创建者数</span>}
-                      value={formatNumber(stats.totalCreators)}
-                      valueStyle={{ color: '#34d399', fontSize: '18px' }}
-                    />
-                  </Col>
-                  <Col xs={24} sm={6}>
-                    <Statistic
-                      title={<span className="text-slate-400">成功率</span>}
-                      value={stats.totalTokens > 0 ? ((stats.graduatedTokens / stats.totalTokens) * 100).toFixed(1) : '0'}
-                      suffix="%"
-                      valueStyle={{ color: '#fbbf24', fontSize: '18px' }}
-                    />
-                  </Col>
-                  <Col xs={24} sm={6}>
-                    <Button 
-                      icon={<ReloadOutlined />} 
-                      onClick={handleRefreshStats}
-                      loading={statsLoading}
-                      type="text"
-                      className="text-slate-400 hover:text-blue-400"
-                    >
-                      刷新数据
-                    </Button>
-                  </Col>
-                </Row>
-              </Card>
-            </div>
-          )}
         </div>
       </Content>
 

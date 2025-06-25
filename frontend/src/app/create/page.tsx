@@ -16,7 +16,7 @@ import {
   Divider,
   Alert,
   Tag,
-  message
+  App
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -85,7 +85,7 @@ const CreatePageSkeleton = () => (
           <Col xs={24} lg={14}>
             <Card 
               className="h-full bg-slate-800/50 border-slate-700"
-              headStyle={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', borderBottom: '1px solid rgb(51, 65, 85)' }}
+              styles={{ header: { backgroundColor: 'rgba(30, 41, 59, 0.5)', borderBottom: '1px solid rgb(51, 65, 85)' } }}
               title={
                 <div className="flex items-center">
                   <div className="w-4 h-4 bg-slate-600 rounded mr-2 animate-pulse"></div>
@@ -149,7 +149,7 @@ const CreatePageSkeleton = () => (
           <Col xs={24} lg={10}>
             <Card 
               className="h-full bg-slate-800/50 border-slate-700"
-              headStyle={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', borderBottom: '1px solid rgb(51, 65, 85)' }}
+              styles={{ header: { backgroundColor: 'rgba(30, 41, 59, 0.5)', borderBottom: '1px solid rgb(51, 65, 85)' } }}
               title={
                 <div className="flex items-center">
                   <div className="w-4 h-4 bg-slate-600 rounded mr-2 animate-pulse"></div>
@@ -218,10 +218,12 @@ const CreatePageSkeleton = () => (
   </Layout>
 );
 
-export default function CreateTokenPage() {
+// 内部组件，使用 App context
+const CreateTokenPageContent = () => {
   const router = useRouter();
   const { isConnected, address, chain } = useAccount();
   const [form] = Form.useForm<TokenForm>();
+  const { message } = App.useApp();
 
   const [mounted, setMounted] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -236,43 +238,59 @@ export default function CreateTokenPage() {
     setMounted(true);
   }, []);
 
-  // 添加全局错误处理 - 过滤chrome扩展错误
+  // 改进的全局错误处理 - 过滤chrome扩展错误
   useEffect(() => {
     const handleGlobalError = (event: ErrorEvent) => {
-      // 过滤掉chrome扩展相关的错误
+      // 更全面的chrome扩展错误过滤
+      const errorMsg = event.error?.message || event.message || '';
+      const errorStack = event.error?.stack || '';
+      const filename = event.filename || '';
+      
       if (
-        event.error?.message?.includes('chrome.runtime.sendMessage') || 
-        event.error?.message?.includes('Extension ID') ||
-        event.error?.stack?.includes('inpage.js') ||
-        event.error?.message?.includes('runtime.sendMessage') ||
-        event.filename?.includes('inpage.js')
+        errorMsg.includes('chrome.runtime.sendMessage') || 
+        errorMsg.includes('Extension ID') ||
+        errorMsg.includes('runtime.sendMessage') ||
+        errorStack.includes('inpage.js') ||
+        filename.includes('inpage.js') ||
+        errorMsg.includes('chrome-extension://') ||
+        errorStack.includes('chrome-extension://') ||
+        errorMsg.includes('Cannot access contents of') ||
+        errorMsg.includes('extensions::') ||
+        filename.includes('extension')
       ) {
-        console.warn('[Chrome Extension Error - Filtered]:', event.error?.message);
-        event.preventDefault(); // 阻止错误显示在控制台
-        return;
+        console.warn('[Chrome Extension Error - Filtered]:', errorMsg);
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
       }
     };
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      // 过滤掉chrome扩展相关的Promise rejection
+      const reason = event.reason?.message || event.reason || '';
+      const stack = event.reason?.stack || '';
+      
       if (
-        event.reason?.message?.includes('chrome.runtime.sendMessage') || 
-        event.reason?.message?.includes('Extension ID') ||
-        event.reason?.stack?.includes('inpage.js') ||
-        event.reason?.message?.includes('runtime.sendMessage')
+        reason.includes('chrome.runtime.sendMessage') || 
+        reason.includes('Extension ID') ||
+        reason.includes('runtime.sendMessage') ||
+        stack.includes('inpage.js') ||
+        reason.includes('chrome-extension://') ||
+        stack.includes('chrome-extension://') ||
+        reason.includes('Cannot access contents of') ||
+        reason.includes('extensions::')
       ) {
-        console.warn('[Chrome Extension Promise Rejection - Filtered]:', event.reason?.message);
-        event.preventDefault(); // 阻止错误显示在控制台
-        return;
+        console.warn('[Chrome Extension Promise Rejection - Filtered]:', reason);
+        event.preventDefault();
+        return false;
       }
     };
 
-    window.addEventListener('error', handleGlobalError);
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    window.addEventListener('error', handleGlobalError, true);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection, true);
 
     return () => {
-      window.removeEventListener('error', handleGlobalError);
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      window.removeEventListener('error', handleGlobalError, true);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection, true);
     };
   }, []);
 
@@ -289,54 +307,132 @@ export default function CreateTokenPage() {
     hash: txHash as `0x${string}`,
   });
 
+  // 监听交易状态和成功事件
+  useEffect(() => {
+    if (txLoading && txHash) {
+      console.log('⏳ 交易已提交，等待确认...', txHash);
+    }
+  }, [txLoading, txHash]);
+
   // 监听交易成功
   useEffect(() => {
     if (txSuccess && txReceipt) {
-      message.success('代币创建成功！');
+      console.log('✅ 交易确认成功！', txReceipt);
       setIsCreating(false);
-
+      
       // 从交易回执中提取代币地址
       if (txReceipt.logs && txReceipt.logs.length > 0) {
-        // 查找代币创建事件，通常是第一个log
-        const tokenCreatedLog = txReceipt.logs.find(log => log.topics.length > 0);
-        if (tokenCreatedLog && tokenCreatedLog.address) {
-          const tokenAddress = tokenCreatedLog.address;
-          setTxHash('');
-
-          message.success('代币创建成功！正在跳转到交易页面...');
-
-          // 跳转到对应代币的交易页面
-          setTimeout(() => {
-            router.push(`/trade/${tokenAddress}`);
-          }, 2000);
-          return;
+        console.log('📄 分析交易日志...', txReceipt.logs);
+        
+        // 查找 MemeTokenCreated 事件
+        // 通常代币地址在事件的第一个参数中
+        const tokenCreatedLog = txReceipt.logs.find(log => 
+          log.topics && log.topics.length >= 2 // 至少有 event signature 和 indexed 参数
+        );
+        
+        if (tokenCreatedLog) {
+          // 尝试从不同位置提取代币地址
+          let tokenAddress = '';
+          
+          // 方法1: 从log的address字段（代币合约地址）
+          if (tokenCreatedLog.address && tokenCreatedLog.address !== contractAddresses.MEME_PLATFORM) {
+            tokenAddress = tokenCreatedLog.address;
+            console.log('🎯 从log.address提取到代币地址:', tokenAddress);
+          }
+          // 方法2: 从topics中提取（indexed参数）
+          else if (tokenCreatedLog.topics && tokenCreatedLog.topics.length > 1) {
+            // 第二个topic通常是代币地址（indexed参数）
+            const addressTopic = tokenCreatedLog.topics[1];
+            if (addressTopic && addressTopic.length === 66) { // 0x + 64 characters
+              tokenAddress = '0x' + addressTopic.slice(-40); // 取最后40个字符
+              console.log('🎯 从topics提取到代币地址:', tokenAddress);
+            }
+          }
+          
+          if (tokenAddress && tokenAddress !== '0x0000000000000000000000000000000000000000') {
+            setTxHash('');
+            // 关闭之前的loading消息
+            message.destroy('creating-token');
+            message.success({
+              content: '代币创建成功！正在跳转到交易页面...',
+              duration: 3
+            });
+            
+            console.log('🚀 准备跳转到代币交易页面:', tokenAddress);
+            
+            // 跳转到对应代币的交易页面
+            setTimeout(() => {
+              router.push(`/trade/${tokenAddress}`);
+            }, 1500);
+            return;
+          }
         }
+        
+        console.log('⚠️ 无法从交易日志中提取代币地址，查看所有日志:');
+        txReceipt.logs.forEach((log, index) => {
+          console.log(`Log ${index}:`, {
+            address: log.address,
+            topics: log.topics,
+            data: log.data
+          });
+        });
       }
-
-      // 如果无法提取代币地址，跳转到trade
-      setTxHash('');
-      setTimeout(() => {
-        router.push('/trade');
-      }, 2000);
+      
+             // 如果无法提取代币地址，仍然显示成功信息并跳转到trade首页
+       setTxHash('');
+       // 关闭之前的loading消息
+       message.destroy('creating-token');
+       message.success({
+         content: '代币创建成功！正在跳转到交易页面...',
+         duration: 3
+       });
+       
+       setTimeout(() => {
+         router.push('/trade');
+       }, 1500);
     }
-  }, [txSuccess, txReceipt, router]);
+  }, [txSuccess, txReceipt, router, message, contractAddresses.MEME_PLATFORM]);
+
+  // 监听交易失败或超时
+  useEffect(() => {
+    if (txHash && !txLoading && !txSuccess) {
+      // 等待一段时间后检查交易是否确实失败
+      const timer = setTimeout(() => {
+        if (!txSuccess && txHash) {
+          console.log('⚠️ 交易可能失败或超时:', txHash);
+          
+          // 关闭loading消息
+          message.destroy('creating-token');
+          message.error({
+            content: '交易确认超时，请检查交易状态或重试',
+            duration: 5
+          });
+          
+          setIsCreating(false);
+          setTxHash('');
+        }
+      }, 60000); // 60秒超时
+      
+      return () => clearTimeout(timer);
+    }
+  }, [txHash, txLoading, txSuccess, message]);
 
   const generateVanityAddress = async () => {
     const values = form.getFieldsValue();
-
+    
     if (!values.name || !values.symbol || !values.description) {
       message.warning('请先填写代币基本信息');
       return;
     }
-
+    
     setIsGeneratingVanity(true);
     try {
       const factoryAddress = contractAddresses.MEME_FACTORY;
-
+      
       if (!factoryAddress) {
         throw new Error('未找到工厂合约地址');
       }
-
+      
       console.log(`🎯 开始寻找以 "cafe" 开头的地址...`);
       console.log(`📋 获取合约字节码...`);
 
@@ -358,7 +454,7 @@ export default function CreateTokenPage() {
 
       console.log(`✅ 字节码获取成功，长度: ${(bytecode as string).length} 字符`);
       console.log(`⚡ 开始本地计算地址...`);
-
+      
       // 使用优化的 vanity 地址生成工具
       const result = await generateVanityAddressUtil(
         factoryAddress,
@@ -372,21 +468,21 @@ export default function CreateTokenPage() {
           }
         }
       );
-
+      
       if (result) {
         const vanityResult = {
           address: result.address.toLowerCase(),
           salt: result.salt,
           attempts: result.attempts
         };
-
+        
         setVanityResult(vanityResult);
         setUseVanity(true);
-
+        
         console.log(`🎉 成功生成 vanity 地址！`);
         console.log(`⚡ 总计用时: ${(result.timeElapsed / 1000).toFixed(1)} 秒`);
         console.log(`🚀 平均速度: ${Math.round(result.attempts / (result.timeElapsed / 1000)).toLocaleString()} 次/秒`);
-
+        
         message.success({
           content: `生成成功！用时 ${(result.timeElapsed / 1000).toFixed(1)} 秒，尝试 ${result.attempts.toLocaleString()} 次`,
           duration: 5
@@ -422,19 +518,19 @@ export default function CreateTokenPage() {
         setIsCreating(false);
         return;
       }
-
+      
       if (!values.symbol?.trim()) {
         message.error('请输入代币符号');
         setIsCreating(false);
         return;
       }
-
+      
       if (!values.description?.trim()) {
         message.error('请输入代币描述');
         setIsCreating(false);
         return;
       }
-
+      
       if (values.decimals < 0 || values.decimals > 18) {
         message.error('小数位数必须在0-18之间');
         setIsCreating(false);
@@ -446,8 +542,8 @@ export default function CreateTokenPage() {
         return;
       }
       // 生成 salt
-      let salt = vanityResult.salt;
-      console.log('使用 vanity 地址创建代币，预期地址:', vanityResult.address);
+      const salt = vanityResult.salt;
+        console.log('使用 vanity 地址创建代币，预期地址:', vanityResult.address);
 
 
       // 使用 Bonding Curve 模式创建（通过 MemePlatform）
@@ -462,7 +558,7 @@ export default function CreateTokenPage() {
         parseUnits(CONTRACT_CONSTANTS.DEFAULT_TARGET_PRICE, CONTRACT_CONSTANTS.ETH_DECIMALS), // targetPrice (ETH)
         parseUnits(CONTRACT_CONSTANTS.DEFAULT_INITIAL_PRICE, CONTRACT_CONSTANTS.ETH_DECIMALS) // initialPrice (ETH)
       ];
-
+      console.log('🚀 创建代币参数:', createArgs);
       const hash = await writeContract(config, {
         address: contractAddresses.MEME_PLATFORM as `0x${string}`,
         abi: MEME_PLATFORM_ABI,
@@ -471,14 +567,33 @@ export default function CreateTokenPage() {
         value: parseEther(creationFee),
       });
 
+      console.log('📝 交易已提交:', hash);
       setTxHash(hash);
-      message.info('Bonding Curve 代币创建已提交，请等待确认...');
+      message.info({
+        content: '交易已提交，等待区块链确认...',
+        duration: 0, // 不自动消失
+        key: 'creating-token'
+      });
 
     } catch (error: unknown) {
       console.error('创建代币失败:', error);
       const errorMessage = error instanceof Error ? error.message : '未知错误';
-      message.error('创建失败: ' + errorMessage);
+      
+      // 关闭loading消息
+      message.destroy('creating-token');
+      
+      // 检查是否是用户取消交易
+      if (errorMessage.includes('User rejected') || errorMessage.includes('user rejected')) {
+        message.warning('交易已取消');
+      } else {
+        message.error({
+          content: '创建失败: ' + errorMessage,
+          duration: 5
+        });
+      }
+      
       setIsCreating(false);
+      setTxHash('');
     }
   };
 
@@ -518,7 +633,7 @@ export default function CreateTokenPage() {
                     </Space>
                   }
                   className="h-full bg-slate-800/50 border-slate-700"
-                  headStyle={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', borderBottom: '1px solid rgb(51, 65, 85)' }}
+                  styles={{ header: { backgroundColor: 'rgba(30, 41, 59, 0.5)', borderBottom: '1px solid rgb(51, 65, 85)' } }}
                 >
                   <Row gutter={[16, 16]}>
                     <Col xs={24} sm={12}>
@@ -642,7 +757,7 @@ export default function CreateTokenPage() {
 
               {/* Vanity 地址 */}
               <Col xs={24} lg={10}>
-                <Card
+                <Card 
                   title={
                     <Space>
                       <StarOutlined className="text-yellow-400" />
@@ -650,29 +765,29 @@ export default function CreateTokenPage() {
                     </Space>
                   }
                   className="h-full bg-slate-800/50 border-slate-700"
-                  headStyle={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', borderBottom: '1px solid rgb(51, 65, 85)' }}
+                  styles={{ header: { backgroundColor: 'rgba(30, 41, 59, 0.5)', borderBottom: '1px solid rgb(51, 65, 85)' } }}
                 >
                   <Alert
                     message={<span className="text-yellow-300">cafe前缀地址生成</span>}
-                    description={<span className="text-slate-200">使用本地CREATE2算法生成以 'cafe' 开头的个性化代币合约地址，计算速度更快，让你的代币更具辨识度。</span>}
+                    description={<span className="text-slate-200">使用本地CREATE2算法生成以 &apos;cafe&apos; 开头的个性化代币合约地址，计算速度更快，让你的代币更具辨识度。</span>}
                     type="info"
                     showIcon={false}
                     className="mb-4 bg-yellow-900/20 border-yellow-600/30"
                   />
-
+                  
                   <Button
                     block
                     onClick={generateVanityAddress}
                     disabled={isCreating}
                     type="primary"
                     loading={isGeneratingVanity}
-                    className={`mt-4 h-12 ${isGeneratingVanity ? 'bg-purple-600/50' : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500'} border-0`}
+                    className={`mt-4 h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 border-0`}
                   >
                     <Space>
                       {isGeneratingVanity ? '正在生成地址...' : '生成 cafe 开头地址'}
                     </Space>
                   </Button>
-
+                  
                   {vanityResult && (
                     <div className="mt-4 p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
                       <div className="flex items-center ">
@@ -755,7 +870,7 @@ export default function CreateTokenPage() {
                 >
                   <Space>
                     <RocketOutlined />
-                    创建 Bonding Curve 代币
+                    {txLoading ? '确认中...' : isCreating ? '创建中...' : '创建 Bonding Curve 代币'}
                   </Space>
                 </Button>
               </Space>
@@ -764,8 +879,8 @@ export default function CreateTokenPage() {
                 <div className="flex items-center justify-center mb-3">
                   <DollarCircleOutlined className="text-green-400 mr-2" />
                   <Text className="text-slate-200 font-medium">
-                    创建费用: {creationFee} ETH + Gas 费用
-                  </Text>
+                  创建费用: {creationFee} ETH + Gas 费用
+                </Text>
                 </div>
 
                 <div className="flex flex-wrap justify-center gap-2 mb-3">
@@ -794,5 +909,13 @@ export default function CreateTokenPage() {
         </div>
       </Content>
     </Layout>
+  );
+};
+
+export default function CreateTokenPage() {
+  return (
+    <App>
+      <CreateTokenPageContent />
+    </App>
   );
 } 

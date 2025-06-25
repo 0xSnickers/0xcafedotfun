@@ -1,6 +1,6 @@
 # 🚀 0xcafe.fun Frontend - MEME 代币交易平台
 
-基于 Next.js 14 构建的现代化 Web3 DApp，为 0xcafe.fun MEME 代币平台提供完整的用户界面和交易体验。
+基于 Next.js 14 构建的现代化 Web3 DApp，为 0xcafe.fun MEME 代币平台提供完整的用户界面和交易体验。集成**自动流动性监控**和**智能毕业机制**。
 
 ![Platform Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-14-black)
@@ -14,6 +14,7 @@
 - **毕业机制**: 可视化毕业进度，10 ETH 市值自动迁移 DEX
 - **实时数据**: 价格、市值、持有者数量实时更新
 - **交易历史**: 完整的交易记录和状态跟踪
+- **自动流动性**: 后端服务自动监控并添加流动性到 Uniswap
 
 ### 🌟 **Vanity 地址生成**
 - **高速算法**: 10,000+ 次/秒本地计算
@@ -37,7 +38,7 @@
 
 ```
 frontend/
-├── 🏠 首页 (/)                    # 平台概览
+├── 🏠 首页 (/)                    # 平台概览和统计
 ├── 🎨 代币创建 (/create)          # 创建新代币
 ├── 📊 交易市场 (/trade)           # 代币列表和搜索
 ├── 💹 个人交易 (/trade/[token])   # 具体代币交易
@@ -51,6 +52,7 @@ frontend/
 - ✅ **实时数据**: 数据自动刷新，支持手动刷新
 - ✅ **特性展示**: Bonding Curve、Vanity 地址、毕业机制介绍
 - ✅ **统一导航**: 快速跳转到创建和交易页面
+- ✅ **后端状态**: 显示流动性监控服务状态
 
 ### 🎨 **代币创建页面 (`/create`)**
 - ✅ **表单验证**: 完整的客户端和服务端验证
@@ -75,6 +77,7 @@ frontend/
 - ✅ **实时更新**: 交易后自动刷新所有相关数据
 - ✅ **智能授权**: 自动检测和处理 ERC20 授权
 - ✅ **错误处理**: 余额不足、授权失败等友好提示
+- ✅ **毕业状态**: 实时显示是否已毕业和流动性状态
 
 ### 🔧 **全局组件**
 - ✅ **UnifiedHeader**: 统一导航栏，支持品牌展示和页面导航
@@ -203,6 +206,55 @@ const useTokenData = (tokenAddress: string) => {
 };
 ```
 
+### 毕业状态检测
+
+```typescript
+// 毕业状态 Hook
+const useGraduationStatus = (tokenAddress: string) => {
+  const [graduationStatus, setGraduationStatus] = useState({
+    isGraduated: false,
+    hasLiquidity: false,
+    uniswapPair: null,
+    liquidityLocked: false
+  });
+
+  const checkGraduationStatus = useCallback(async () => {
+    try {
+      // 检查是否已毕业
+      const bondingInfo = await readContract(config, {
+        address: BONDING_CURVE_ADDRESS,
+        abi: BONDING_CURVE_ABI,
+        functionName: 'isTokenGraduated',
+        args: [tokenAddress]
+      });
+
+      // 检查流动性状态
+      const liquidityInfo = await readContract(config, {
+        address: LIQUIDITY_MANAGER_ADDRESS,
+        abi: LIQUIDITY_MANAGER_ABI,
+        functionName: 'getLiquidityInfo',
+        args: [tokenAddress]
+      });
+
+      setGraduationStatus({
+        isGraduated: bondingInfo,
+        hasLiquidity: liquidityInfo.liquidityAdded,
+        uniswapPair: liquidityInfo.uniswapPair,
+        liquidityLocked: liquidityInfo.liquidityLocked
+      });
+    } catch (error) {
+      console.error('检查毕业状态失败:', error);
+    }
+  }, [tokenAddress]);
+
+  useEffect(() => {
+    checkGraduationStatus();
+  }, [checkGraduationStatus]);
+
+  return graduationStatus;
+};
+```
+
 ## 🚀 快速开始
 
 ### 环境要求
@@ -231,15 +283,16 @@ open http://localhost:3000
 # 必需配置
 NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=your_wallet_connect_project_id
 
-# 智能合约地址 (Sepolia 测试网)
-NEXT_PUBLIC_SEPOLIA_MEME_PLATFORM_ADDRESS=0x...
-NEXT_PUBLIC_SEPOLIA_MEME_FACTORY_ADDRESS=0x...
-NEXT_PUBLIC_SEPOLIA_BONDING_CURVE_ADDRESS=0x...
+# 智能合约地址 (自动同步)
+NEXT_PUBLIC_MEME_PLATFORM_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
+NEXT_PUBLIC_MEME_FACTORY_ADDRESS=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+NEXT_PUBLIC_BONDING_CURVE_ADDRESS=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+NEXT_PUBLIC_FEE_MANAGER_ADDRESS=0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9
+NEXT_PUBLIC_LIQUIDITY_MANAGER_ADDRESS=0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
 
-# 本地开发网络
-NEXT_PUBLIC_LOCAL_MEME_PLATFORM_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
-NEXT_PUBLIC_LOCAL_MEME_FACTORY_ADDRESS=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
-NEXT_PUBLIC_LOCAL_BONDING_CURVE_ADDRESS=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+# 网络配置
+NEXT_PUBLIC_NETWORK_RPC=http://127.0.0.1:8545
+NEXT_PUBLIC_CHAIN_ID=31337
 
 # RPC URLs (可选)
 NEXT_PUBLIC_MAINNET_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/your-api-key
@@ -271,7 +324,8 @@ frontend/
 │   │   ├── useBondingCurve.ts  # Bonding Curve 交互
 │   │   ├── useTokenBalance.ts  # 代币余额
 │   │   ├── useTokenInfo.ts     # 代币信息
-│   │   └── usePlatformStats.ts # 平台统计
+│   │   ├── usePlatformStats.ts # 平台统计
+│   │   └── useGraduationStatus.ts # 毕业状态
 │   ├── config/                 # 配置文件
 │   │   ├── wagmi.ts           # Web3 配置
 │   │   ├── contracts.ts       # 合约地址
@@ -301,7 +355,7 @@ frontend/
 ### 交互体验
 - **一键操作**: 复制地址、刷新数据、快速跳转
 - **智能提示**: 实时验证、友好错误信息
-- **批量操作**: 支持批量选择和操作
+- **毕业标识**: 特殊的视觉标识区分已毕业代币
 - **键盘导航**: 支持键盘快捷键操作
 
 ## 📊 性能优化
@@ -322,7 +376,7 @@ frontend/
 - **预加载**: 关键资源预加载
 - **离线支持**: 基础功能离线可用
 - **错误恢复**: 自动重试和错误恢复
-- **实时同步**: WebSocket 实时数据同步
+- **实时同步**: 与后端服务实时数据同步
 
 ## 🔧 开发指南
 
@@ -341,6 +395,30 @@ npm run type-check
 npm run build
 ```
 
+### 与后端集成
+```typescript
+// 检查后端监控服务状态
+const checkBackendStatus = async () => {
+  try {
+    const response = await fetch('http://localhost:9000/api/monitor/status');
+    const data = await response.json();
+    return data.monitor.isActive;
+  } catch {
+    return false;
+  }
+};
+
+// 手动触发流动性添加
+const triggerLiquidityAdd = async (tokenAddress: string) => {
+  const response = await fetch('http://localhost:9000/api/monitor/manual', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tokenAddress })
+  });
+  return response.json();
+};
+```
+
 ### Git 工作流
 ```bash
 # 1. 创建功能分支
@@ -353,28 +431,6 @@ git commit -m "feat: add new feature"
 git push origin feature/new-feature
 
 # 4. 创建 Pull Request
-```
-
-### 组件开发
-```typescript
-// 组件模板
-interface ComponentProps {
-  title: string;
-  data: any[];
-  onAction: (item: any) => void;
-}
-
-export default function Component({ title, data, onAction }: ComponentProps) {
-  return (
-    <Card title={title}>
-      {data.map(item => (
-        <div key={item.id} onClick={() => onAction(item)}>
-          {item.name}
-        </div>
-      ))}
-    </Card>
-  );
-}
 ```
 
 ## 🌐 部署选项
@@ -411,9 +467,35 @@ npm run test:coverage
 npm run test:e2e
 ```
 
-### 合约测试
+### 合约集成测试
 ```bash
 # 本地测试网络
 npm run test:local
 ```
+
+## 📚 相关文档
+
+- **主项目文档**: [../README.md](../README.md)
+- **后端文档**: [../backend/README.md](../backend/README.md)
+- **智能合约**: [../src/](../src/)
+- **部署脚本**: [../local-deploy.sh](../local-deploy.sh)
+
+## 🤝 贡献指南
+
+1. **Fork** 本仓库
+2. **创建功能分支**: `git checkout -b feature/frontend-enhancement`
+3. **编写测试**: 确保新功能有对应测试
+4. **提交代码**: `git commit -m "feat: add UI enhancement"`
+5. **推送分支**: `git push origin feature/frontend-enhancement`
+6. **创建 PR**: 详细描述更改内容
+
+### 代码规范
+- 使用 TypeScript 严格模式
+- 遵循 ESLint 和 Prettier 规则
+- 组件使用 React 函数组件
+- 保持组件单一职责
+
+---
+
+**🎨 让我们一起打造最佳的 Web3 用户体验！**
 

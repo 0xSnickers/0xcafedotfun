@@ -42,6 +42,7 @@ import { formatAddress } from '../../../hooks/useContracts';
 import { useTokenBalance } from '../../../hooks/useTokenBalance';
 import WalletInfo, { WalletInfoRef } from '../../../components/WalletInfo';
 import ETHTradePanel from '../../../components/ETHTradePanel';
+import ManualLiquidityPanel from '../../../components/ManualLiquidityPanel';
 import UnifiedHeader from '../../../components/UnifiedHeader';
 
 const { Header, Content } = Layout;
@@ -78,6 +79,7 @@ function TokenTradePage() {
 
   const { isConnected, chain } = useAccount();
   const [mounted, setMounted] = useState(false);
+  const [wagmiReady, setWagmiReady] = useState(false);
   const [tokenDetails, setTokenDetails] = useState<TokenDetails | null>(null);
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,11 +102,23 @@ function TokenTradePage() {
     setMounted(true);
   }, []);
 
+  // 等待wagmi配置就绪
   useEffect(() => {
-    if (mounted && tokenAddress && contractAddresses.BONDING_CURVE && contractAddresses.MEME_FACTORY) {
+    if (mounted) {
+      const timer = setTimeout(() => {
+        setWagmiReady(true);
+      }, 1000); // 等待1秒确保wagmi完全初始化
+      
+      return () => clearTimeout(timer);
+    }
+  }, [mounted]);
+
+  useEffect(() => {
+    if (wagmiReady && tokenAddress && contractAddresses.BONDING_CURVE && contractAddresses.MEME_FACTORY) {
+      console.log('🔍 [DEBUG] Wagmi就绪，开始获取数据');
       fetchTokenData();
     }
-  }, [mounted, tokenAddress, contractAddresses.BONDING_CURVE, contractAddresses.MEME_FACTORY]);
+  }, [wagmiReady, tokenAddress, contractAddresses.BONDING_CURVE, contractAddresses.MEME_FACTORY]);
 
   // 当连接状态变化时，刷新token余额
   useEffect(() => {
@@ -118,6 +132,70 @@ function TokenTradePage() {
 
     setLoading(true);
     try {
+      console.log('🔍 [DEBUG] 开始获取代币数据:', tokenAddress);
+      
+      // 验证合约地址格式
+      if (!contractAddresses.BONDING_CURVE.startsWith('0x') || contractAddresses.BONDING_CURVE.length !== 42) {
+        console.error('❌ [DEBUG] 无效的合约地址格式:', contractAddresses.BONDING_CURVE);
+        setLoading(false);
+        setInitialDataLoaded(true);
+        message.error('合约地址无效');
+        return;
+      }
+
+      // 首先检查代币是否有效（增加重试机制）
+      let isValidToken = false;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          console.log(`🔍 [DEBUG] 尝试检查代币有效性 (${retryCount + 1}/${maxRetries})`);
+          
+          isValidToken = await readContract(config, {
+            address: contractAddresses.BONDING_CURVE as `0x${string}`,
+            abi: BONDING_CURVE_ABI,
+            functionName: 'isValidToken',
+            args: [tokenAddress as `0x${string}`]
+          }) as boolean;
+          
+          console.log('✅ [DEBUG] 代币有效性检查成功:', isValidToken);
+          break; // 成功则跳出循环
+          
+        } catch (error) {
+          retryCount++;
+          console.error(`❌ [DEBUG] 检查代币有效性失败 (${retryCount}/${maxRetries}):`, error);
+          
+          if (retryCount >= maxRetries) {
+            // 检查错误类型，提供更具体的错误信息
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            
+            if (errorMsg.includes('returned no data') || errorMsg.includes('0x')) {
+              message.error('合约连接失败，请检查网络连接或稍后重试');
+            } else if (errorMsg.includes('address is not a contract')) {
+              message.error('合约地址无效或网络配置错误');
+            } else {
+              message.error('网络连接错误，请刷新页面重试');
+            }
+            
+            setLoading(false);
+            setInitialDataLoaded(true);
+            return;
+          }
+          
+          // 等待一秒后重试
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      if (!isValidToken) {
+        console.warn('⚠️ [DEBUG] 代币未在BondingCurve中初始化');
+        setLoading(false);
+        setInitialDataLoaded(true);
+        message.error('代币未初始化或不存在');
+        return;
+      }
+
       // 并行获取代币信息和详情
       const [tokenInfoResult, tokenDetailsResult] = await Promise.allSettled([
         // 获取代币基本信息
@@ -155,6 +233,7 @@ function TokenTradePage() {
 
       // 处理代币交易详情
       if (tokenDetailsResult.status === 'fulfilled') {
+        console.log('✅ [DEBUG] 获取代币交易详情成功');
         const details = tokenDetailsResult.value as unknown as [any, any, bigint, bigint];
         const [params, info, currentPrice, marketCap] = details;
 
@@ -264,8 +343,27 @@ function TokenTradePage() {
           priceChange24h: 0 // 移除随机变化，实际需要历史价格数据来计算
         });
       } else {
-        console.error('获取代币交易详情失败:', tokenDetailsResult.reason);
-        message.error('获取代币详情失败');
+        console.error('❌ [DEBUG] 获取代币交易详情失败:', tokenDetailsResult.reason);
+        
+        // 检查是否是合约函数返回空数据的错误
+        const error = tokenDetailsResult.reason;
+        if (error && typeof error === 'object' && 'message' in error) {
+          const errorMsg = (error as any).message;
+          if (errorMsg.includes('returned no data') || errorMsg.includes('0x')) {
+            message.error('代币数据不存在，可能未正确初始化');
+          } else if (errorMsg.includes('Invalid token')) {
+            message.error('无效的代币地址');
+          } else {
+            message.error('获取代币详情失败: ' + errorMsg);
+          }
+        } else {
+          message.error('获取代币详情失败');
+        }
+        
+        // 即使获取详情失败，也要标记为已加载，避免无限循环
+        setLoading(false);
+        setInitialDataLoaded(true);
+        return;
       }
     } catch (error) {
       console.error('获取代币数据失败:', error);
@@ -358,7 +456,7 @@ function TokenTradePage() {
   );
 
   // 初始挂载时显示加载动画
-  if (!mounted) {
+  if (!mounted || !wagmiReady) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center">
@@ -368,6 +466,7 @@ function TokenTradePage() {
       </div>
     );
   }
+
 
   // 数据加载中显示骨架屏
   if (!initialDataLoaded) {
@@ -418,12 +517,12 @@ function TokenTradePage() {
         <Content className="p-4 lg:p-6">
           <div className="max-w-7xl mx-auto">
             {/* 加载状态 */}
-            {loading && (
+            {/* {loading && (
               <div className="text-center mb-6">
                 <Spin size="large" />
                 <Text className="text-slate-300 block mt-4">正在获取代币信息...</Text>
               </div>
-            )}
+            )} */}
 
 
             <Row gutter={[24, 24]}>
@@ -553,10 +652,10 @@ function TokenTradePage() {
                         <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 p-4 rounded-xl border border-blue-500/20">
                           <div className="flex items-center space-x-2 mb-2">
                             <ThunderboltOutlined className="text-blue-400" />
-                            <Text className="text-slate-300 text-sm font-medium">24h成交量</Text>
+                            <Text className="text-slate-300 text-sm font-medium">当前供应量</Text>
                           </div>
                           <Text className="text-blue-400 text-lg font-bold">
-                            {parseFloat(tokenDetails.volume24h).toFixed(4)} ETH
+                            {tokenDetails ? parseFloat(tokenDetails.currentSupply).toLocaleString() : '0'} 
                           </Text>
                         </div>
 
@@ -673,37 +772,13 @@ function TokenTradePage() {
               {/* 右侧：交易面板 */}
               <Col xs={24} lg={8}>
                 <div className="space-y-6 h-full">
-                  {/* 连接钱包提示 */}
-                  {/* {!isConnected && (
-                    <Alert
-                      message="钱包未连接"
-                      description="请连接钱包开始交易"
-                      type="warning"
-                      showIcon
-                      className="rounded-xl bg-yellow-900/20 border-yellow-600/30 text-yellow-200"
-                    />
-                  )} */}
-
-                  {/* Token余额加载状态 */}
-                  {isConnected && isTokenBalanceLoading && (
-                    <Alert
-                      message={
-                        <div className="flex items-center space-x-2">
-                          <Spin size="small" />
-                          <span>正在获取 {tokenInfo?.symbol || 'Token'} 余额...</span>
-                        </div>
-                      }
-                      type="info"
-                      className="rounded-xl bg-blue-900/20 border-blue-600/30 text-blue-200"
-                    />
-                  )}
-
+              
                   {/* 交易面板 */}
                   {tokenInfo && (
                     <ETHTradePanel
                       tokenAddress={tokenAddress}
                       tokenSymbol={tokenInfo.symbol}
-                      tokenBalance={tokenBalance?.formatted || '0.0000'} // 使用实际的token余额
+                      tokenBalance={tokenBalance}
                       onTradeComplete={() => {
                         // 交易完成后刷新数据
                         setTimeout(() => {
@@ -718,14 +793,38 @@ function TokenTradePage() {
                           }
                         }, 1500); // 缩短等待时间到1.5秒
                       }}
+                      refetchTokenBalance={refetchTokenBalance}
                     />
                   )}
+
+                  {/* 手动添加流动性面板 - 仅在代币毕业后显示 */}
+                  {/* {tokenInfo && tokenDetails && (
+                    <ManualLiquidityPanel
+                      tokenAddress={tokenAddress}
+                      tokenSymbol={tokenInfo.symbol}
+                      isGraduated={tokenDetails.graduated}
+                      onLiquidityAdded={() => {
+                        // 流动性添加完成后刷新数据
+                        setTimeout(() => {
+                          fetchTokenData();
+                          // 刷新token余额
+                          if (refetchTokenBalance) {
+                            refetchTokenBalance();
+                          }
+                          // 刷新ETH余额
+                          if (walletInfoRef.current) {
+                            walletInfoRef.current.refreshBalance();
+                          }
+                        }, 2000); // 给流动性添加更多时间
+                      }}
+                    />
+                  )} */}
                 </div>
               </Col>
             </Row>
 
             {/* TradingView 图表占位符 */}
-            <div className="mt-8">
+            {/* <div className="mt-8">
               <Card
                 title={
                   <div className="flex items-center space-x-2 text-white">
@@ -750,7 +849,7 @@ function TokenTradePage() {
                   </div>
                 </div>
               </Card>
-            </div>
+            </div> */}
           </div>
         </Content>
       </Layout>

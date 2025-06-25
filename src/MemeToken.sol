@@ -9,13 +9,14 @@ contract MemeToken is ERC20, Ownable {
     string private _tokenImage;
     string private _description;
     address public minter; // 授权的铸造者地址（通常是 BondingCurve 合约）
+    uint256 public currentSupply;  // 当前已铸造供应量
     
     event TokenImageUpdated(string newImage);
     event DescriptionUpdated(string newDescription);
     event MinterUpdated(address indexed newMinter);
     
     modifier onlyMinter() {
-        require(msg.sender == minter || msg.sender == owner(), "Not authorized minter");
+        require(msg.sender == minter, "Not authorized minter");
         _;
     }
     
@@ -31,12 +32,13 @@ contract MemeToken is ERC20, Ownable {
         _decimals = decimals_;
         _tokenImage = tokenImage_;
         _description = description_;
+        minter = owner; // 初始化铸造者为合约所有者
         // 对于 bonding curve 模式，不立即铸造所有代币
         // _mint(owner, totalSupply); // 注释掉，改为按需铸造
     }
 
     // @notice 设置授权铸造者（通常是 BondingCurve 合约）
-    function setMinter(address _minter) external onlyOwner {
+    function setMinter(address _minter) external onlyMinter {
         minter = _minter;
         emit MinterUpdated(_minter);
     }
@@ -87,5 +89,13 @@ contract MemeToken is ERC20, Ownable {
     function burnFrom(address account, uint256 amount) external {
         _spendAllowance(account, msg.sender, amount);
         _burn(account, amount);
+    }
+
+    function setCurrentSupply(uint256 newCurrentSupply) external onlyMinter {
+        currentSupply = newCurrentSupply;
+    }
+
+    function getCurrentSupply() external view returns (uint256) {
+        return currentSupply;
     }
 } 

@@ -21,7 +21,7 @@ export function useTokenBalance(tokenAddress: string) {
   const fetchBalance = useCallback(async () => {
     if (!isConnected || !address || !tokenAddress || tokenAddress === '') {
       setBalance(null);
-      return;
+      return null;
     }
 
     setIsLoading(true);
@@ -41,15 +41,19 @@ export function useTokenBalance(tokenAddress: string) {
       
       console.log(`用户余额: ${balanceFormatted}`);
       
-      setBalance({
+      const newBalance = {
         raw: balanceRaw,
         formatted: balanceFormatted
-      });
+      };
+
+      setBalance(newBalance);
+      return newBalance;
       
     } catch (err) {
       console.error('获取代币余额失败:', err);
       setError(err instanceof Error ? err.message : '未知错误');
       setBalance(null);
+      return null;
     } finally {
       setIsLoading(false);
     }

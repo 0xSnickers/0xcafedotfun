@@ -2,6 +2,7 @@
 pragma solidity ^0.8.29;
 
 import "./MemeFactory.sol";
+import "./FeeManager.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -12,13 +13,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  */
 contract MemePlatform is Ownable, ReentrancyGuard {
     MemeFactory public immutable memeFactory;
-    
-    // 平台费用管理
-    uint256 public totalPlatformFeesReceived;
-    uint256 public totalPlatformFeesWithdrawn;
-    mapping(address => uint256) public erc20FeesReceived;
-    mapping(address => uint256) public erc20FeesWithdrawn;
-    address public treasury;
+    FeeManager public immutable feeManager;
     
     // 简化的用户档案
     struct UserProfile {
@@ -31,40 +26,10 @@ contract MemePlatform is Ownable, ReentrancyGuard {
     
     // 事件
     event UserProfileUpdated(address indexed user, string username, string avatar);
-    event PlatformFeesReceived(address indexed from, uint256 amount);
-    event PlatformFeesWithdrawn(address indexed to, uint256 amount);
-    event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
     
-    constructor(address payable _memeFactory) Ownable(msg.sender) {
+    constructor(address payable _memeFactory, address _feeManager) Ownable(msg.sender) {
         memeFactory = MemeFactory(_memeFactory);
-        treasury = msg.sender;
-    }
-
-    // 接收平台费用（ETH）
-    function receivePlatformFees() external payable {
-        // 可以接收0值调用，这是来自BondingCurve的通知
-        if (msg.value > 0) {
-            totalPlatformFeesReceived += msg.value;
-        }
-        emit PlatformFeesReceived(msg.sender, msg.value);
-    }
-
-    // 接收平台费用（ERC20代币）
-    function receivePlatformFees(address token, uint256 amount) external {
-        require(token != address(0), "Invalid token address");
-        require(amount > 0, "No fees received");
-        
-        IERC20(token).transferFrom(msg.sender, address(this), amount);
-        erc20FeesReceived[token] += amount;
-        emit PlatformFeesReceived(msg.sender, amount);
-    }
-
-    // 设置财务地址
-    function setTreasury(address _treasury) external onlyOwner {
-        require(_treasury != address(0), "Invalid treasury address");
-        address oldTreasury = treasury;
-        treasury = _treasury;
-        emit TreasuryUpdated(oldTreasury, _treasury);
+        feeManager = FeeManager(payable(_feeManager));
     }
 
     // 创建代币
@@ -101,43 +66,6 @@ contract MemePlatform is Ownable, ReentrancyGuard {
         userProfiles[msg.sender].username = username;
         userProfiles[msg.sender].avatar = avatar;
         emit UserProfileUpdated(msg.sender, username, avatar);
-    }
-
-    // 提取ETH费用
-    function withdrawPlatformFees(uint256 amount) external {
-        require(msg.sender == owner() || msg.sender == treasury, "Unauthorized");
-        require(amount > 0, "Amount must be greater than 0");
-        
-        uint256 availableFees = totalPlatformFeesReceived - totalPlatformFeesWithdrawn;
-        require(amount <= availableFees, "Insufficient fees available");
-        require(address(this).balance >= amount, "Insufficient contract balance");
-        
-        totalPlatformFeesWithdrawn += amount;
-        payable(treasury).transfer(amount);
-        emit PlatformFeesWithdrawn(treasury, amount);
-    }
-
-    // 提取ERC20代币费用
-    function withdrawERC20Fees(address token, uint256 amount) external {
-        require(msg.sender == owner() || msg.sender == treasury, "Unauthorized");
-        require(token != address(0), "Invalid token address");
-        require(amount > 0, "Amount must be greater than 0");
-        
-        uint256 availableFees = erc20FeesReceived[token] - erc20FeesWithdrawn[token];
-        require(amount <= availableFees, "Insufficient fees available");
-        
-        erc20FeesWithdrawn[token] += amount;
-        IERC20(token).transfer(treasury, amount);
-        emit PlatformFeesWithdrawn(treasury, amount);
-    }
-
-    // 获取可用费用
-    function getAvailablePlatformFees() external view returns (uint256) {
-        return totalPlatformFeesReceived - totalPlatformFeesWithdrawn;
-    }
-
-    function getAvailableERC20Fees(address token) external view returns (uint256) {
-        return erc20FeesReceived[token] - erc20FeesWithdrawn[token];
     }
 
     // 获取用户档案
@@ -178,6 +106,16 @@ contract MemePlatform is Ownable, ReentrancyGuard {
         );
     }
 
+    // 获取代币的平台费用
+    function getTokenPlatformFees(address token) external view returns (uint256) {
+        return feeManager.getTokenPlatformFees(token);
+    }
+
+    // 获取代币的创建者费用
+    function getTokenCreatorFees(address token) external view returns (uint256) {
+        return feeManager.getTokenCreatorFees(token);
+    }
+
     // 紧急提取
     function emergencyWithdraw() external onlyOwner {
         uint256 balance = address(this).balance;
@@ -186,10 +124,5 @@ contract MemePlatform is Ownable, ReentrancyGuard {
     }
 
     // 接收ETH
-    receive() external payable {
-        if (msg.value > 0) {
-            totalPlatformFeesReceived += msg.value;
-            emit PlatformFeesReceived(msg.sender, msg.value);
-        }
-    }
+    receive() external payable {}
 } 

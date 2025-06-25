@@ -10,6 +10,19 @@
   },
   {
     "type": "function",
+    "name": "CREATION_FEE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MAX_PAGE_SIZE",
     "inputs": [],
     "outputs": [
@@ -97,19 +110,6 @@
       }
     ],
     "stateMutability": "payable"
-  },
-  {
-    "type": "function",
-    "name": "creationFee",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -368,19 +368,6 @@
   },
   {
     "type": "function",
-    "name": "platformFeePercentage",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "predictTokenAddress",
     "inputs": [
       {
@@ -504,32 +491,6 @@
   },
   {
     "type": "function",
-    "name": "setCreationFee",
-    "inputs": [
-      {
-        "name": "_newFee",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setPlatformFeePercentage",
-    "inputs": [
-      {
-        "name": "_newFee",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "tokenExists",
     "inputs": [
       {
@@ -589,19 +550,6 @@
         "type": "address",
         "indexed": true,
         "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "CreationFeeUpdated",
-    "inputs": [
-      {
-        "name": "newFee",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -670,19 +618,6 @@
         "type": "address",
         "indexed": true,
         "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "PlatformFeeUpdated",
-    "inputs": [
-      {
-        "name": "newFee",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
       }
     ],
     "anonymous": false

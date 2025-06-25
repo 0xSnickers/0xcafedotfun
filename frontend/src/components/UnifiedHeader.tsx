@@ -61,23 +61,16 @@ export default function UnifiedHeader({
     return '/';
   };
 
-  // 移动端菜单
-  const mobileMenu = (
-    <Menu
-      mode="vertical"
-      selectedKeys={[getCurrentKey()]}
-      items={navigationItems.map(item => ({
-        key: item.key,
-        label: (
-          <Link href={item.href} className="flex items-center space-x-2">
-            {item.icon}
-            <span>{item.label}</span>
-          </Link>
-        )
-      }))}
-      className="border-0 bg-slate-800"
-    />
-  );
+  // 移动端菜单配置
+  const mobileMenuItems = navigationItems.map(item => ({
+    key: item.key,
+    label: (
+      <Link href={item.href} className="flex items-center space-x-2">
+        {item.icon}
+        <span>{item.label}</span>
+      </Link>
+    )
+  }));
 
   return (
     <Header className="bg-slate-800/90 backdrop-blur-md border-b border-slate-700 shadow-xl px-4 lg:px-6">
@@ -134,7 +127,11 @@ export default function UnifiedHeader({
           {/* 移动端菜单按钮 */}
           <div className="lg:hidden">
             <Dropdown
-              overlay={mobileMenu}
+              menu={{
+                items: mobileMenuItems,
+                selectedKeys: [getCurrentKey()],
+                className: "border-0 bg-slate-800"
+              }}
               trigger={['click']}
               placement="bottomRight"
               open={mobileMenuVisible}

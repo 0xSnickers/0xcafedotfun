@@ -38,8 +38,7 @@ contract MemeFactory is Ownable {
     mapping(address => EnumerableSet.AddressSet) private creatorTokensSet;
     
     uint256 public totalTokenCount;
-    uint256 public creationFee = 0.001 ether;
-    uint256 public platformFeePercentage = 100;
+    uint256 public constant CREATION_FEE = 0.001 ether;
     uint256 public constant MAX_PAGE_SIZE = 100;
     
     address public bondingCurveContract;
@@ -53,8 +52,6 @@ contract MemeFactory is Ownable {
         string tokenImage, 
         string description
     );
-    event CreationFeeUpdated(uint256 newFee);
-    event PlatformFeeUpdated(uint256 newFee);
     event BondingCurveContractUpdated(address indexed newContract);
     
     constructor() Ownable(msg.sender) {}
@@ -90,7 +87,7 @@ contract MemeFactory is Ownable {
     ) external view returns (address) {
         bytes memory bytecode = abi.encodePacked(
             type(MemeToken).creationCode,
-            abi.encode(name, symbol, decimals, totalSupply, msg.sender, tokenImage, description)
+            abi.encode(name, symbol, decimals, totalSupply, address(this), tokenImage, description)
         );
         return Create2.computeAddress(salt, keccak256(bytecode), address(this));
     }
@@ -143,7 +140,7 @@ contract MemeFactory is Ownable {
     function _createToken(CreateParams memory params) internal returns (address) {
         require(params.actualCreator != address(0), "Invalid creator");
         require(bondingCurveContract != address(0), "BondingCurve contract not set");
-        require(msg.value >= creationFee, "Insufficient creation fee");
+        require(msg.value >= CREATION_FEE, "Insufficient creation fee");
         require(bytes(params.name).length > 0 && bytes(params.symbol).length > 0, "Invalid params");
         
         // 创建代币
@@ -185,8 +182,8 @@ contract MemeFactory is Ownable {
             params.initialPrice
         );
         
-        if (msg.value > creationFee) {
-            payable(msg.sender).transfer(msg.value - creationFee);
+        if (msg.value > CREATION_FEE) {
+            payable(msg.sender).transfer(msg.value - CREATION_FEE);
         }
         
         emit MemeTokenCreated(
@@ -233,17 +230,8 @@ contract MemeFactory is Ownable {
     function getCreatorTokenCount(address creator) external view returns (uint256) { return creatorTokensSet[creator].length(); }
     function tokenExists(address tokenAddress) external view returns (bool) { return allMemeTokensSet.contains(tokenAddress); }
     function isCreatorOf(address creator, address tokenAddress) external view returns (bool) { return creatorTokensSet[creator].contains(tokenAddress); }
+  
     
-    function setCreationFee(uint256 _newFee) external onlyOwner {
-        creationFee = _newFee;
-        emit CreationFeeUpdated(_newFee);
-    }
-    
-    function setPlatformFeePercentage(uint256 _newFee) external onlyOwner {
-        require(_newFee <= 1000, "Fee too high");
-        platformFeePercentage = _newFee;
-        emit PlatformFeeUpdated(_newFee);
-    }
     
     function withdrawFees() external onlyOwner {
         uint256 balance = address(this).balance;

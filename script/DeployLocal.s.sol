@@ -5,6 +5,8 @@ import {Script, console} from "forge-std/Script.sol";
 import "../src/MemeFactory.sol";
 import "../src/MemePlatform.sol";
 import "../src/BondingCurve.sol";
+import "../src/LiquidityManager.sol";
+import "../src/FeeManager.sol";
 
 /**
  * @title DeployLocalScript
@@ -12,18 +14,21 @@ import "../src/BondingCurve.sol";
  * @dev Deploy complete Meme token platform ecosystem using ETH
  */
 contract DeployLocalScript is Script {
+    // Uniswap V2 地址（Anvil 本地部署）
+    address constant UNISWAP_V2_ROUTER = 0x610178dA211FEF7D417bC0e6FeD39F05609AD788;
+    
     // Deployment configuration
     uint256 public constant CREATION_FEE = 0.001 ether;
     uint256 public constant PLATFORM_FEE_PERCENTAGE = 200; // 2%
     uint256 public constant CREATOR_FEE_PERCENTAGE = 300;  // 3%
     
     // Deployed contract instances
+    FeeManager public feeManager;
     MemeFactory public memeFactory;
     MemePlatform public memePlatform;
     BondingCurve public bondingCurve;
+    LiquidityManager public liquidityManager;
     
-    // Test accounts - changed from public to private
-    address[] private accountAddresses;
     
     function setUp() public {}
     
@@ -31,7 +36,7 @@ contract DeployLocalScript is Script {
         console.log("Starting deployment to Anvil local testnet...");
         
         // Use default anvil test account
-        uint256 deployerPrivateKey = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY_LOCAL");
         address deployer = vm.addr(deployerPrivateKey);
         
         console.log("Deployer account:", deployer);
@@ -39,78 +44,74 @@ contract DeployLocalScript is Script {
         
         vm.startBroadcast(deployerPrivateKey);
         
-        // 1. Deploy MemeFactory
-        console.log("1. Deploying MemeFactory...");
+        // 1. Deploy FeeManager
+        console.log("1. Deploying FeeManager...");
+        feeManager = new FeeManager();
+        console.log("FeeManager deployed:", address(feeManager));
+        
+        // 2. Deploy MemeFactory
+        console.log("2. Deploying MemeFactory...");
         memeFactory = new MemeFactory();
         console.log("MemeFactory deployed:", address(memeFactory));
         
-        // 2. Deploy MemePlatform
-        console.log("2. Deploying MemePlatform...");
-        memePlatform = new MemePlatform(payable(address(memeFactory)));
+        // 3. Deploy MemePlatform
+        console.log("3. Deploying MemePlatform...");
+        memePlatform = new MemePlatform(payable(address(memeFactory)), address(feeManager));
         console.log("MemePlatform deployed:", address(memePlatform));
         
-        // 3. Deploy BondingCurve
-        console.log("3. Deploying BondingCurve...");
-        bondingCurve = new BondingCurve(address(memePlatform));
-        console.log("BondingCurve deployed:", address(bondingCurve));
+        // 4. Deploy LiquidityManager
+        console.log("4. Deploying LiquidityManager...");
+        liquidityManager = new LiquidityManager(UNISWAP_V2_ROUTER); // BondingCurve address will be set later
+        console.log("LiquidityManager deployed:", address(liquidityManager));
         
-        // 4. Configure contract relationships
-        console.log("4. Configuring contract relationships...");
+        // 5. Deploy BondingCurve
+        console.log("5. Deploying BondingCurve...");
+        bondingCurve = new BondingCurve(
+            address(feeManager), 
+            address(liquidityManager)
+        );
+        console.log("BondingCurve deployed:", address(bondingCurve));
+        bondingCurve.setMemeFactory(address(memeFactory));
+        
+        // 6. Configure contract relationships
+        console.log("6. Configuring contract relationships...");
         
         // Set MemeFactory's BondingCurve contract address
         memeFactory.setBondingCurveContract(address(bondingCurve));
         console.log("MemeFactory BondingCurve address set");
         
-        // Authorize MemeFactory to call BondingCurve
-        bondingCurve.addAuthorizedCaller(address(memeFactory));
-        console.log("MemeFactory authorized for BondingCurve");
+        // Set LiquidityManager's BondingCurve address
+        liquidityManager.setBondingCurve(address(bondingCurve));
+        console.log("LiquidityManager BondingCurve address set");
         
-        // 5. Setup test accounts
-        console.log("5. Setting up test accounts...");
-        _setupTestAccounts();
+        // 7. Setup test accounts
+        console.log("7. Setting up test accounts...");
         
         vm.stopBroadcast();
         
-        // 6. Verify deployment
-        console.log("6. Verifying deployment...");
+        // 8. Verify deployment
+        console.log("8. Verifying deployment...");
         _verifyDeployment(deployer);
         
-        // 7. Print deployment summary
+        // 9. Print deployment summary
         _printDeploymentSummary();
         
-        // 8. Print testing guide
+        // 10. Print testing guide
         _printTestingGuide();
     }
     
-    /**
-     * @notice Setup test accounts
-     */
-    function _setupTestAccounts() internal {
-        // Prepare test account addresses (Anvil default accounts)
-        accountAddresses = [
-            0x70997970C51812dc3A010C7d01b50e0d17dc79C8, // Account 1
-            0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC, // Account 2
-            0x90F79bf6EB2c4f870365E785982E1f101E93b906, // Account 3
-            0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65, // Account 4
-            0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc  // Account 5
-        ];
-        
-        console.log("Test accounts prepared:", accountAddresses.length);
-        for (uint256 i = 0; i < accountAddresses.length; i++) {
-            console.log("Account", i + 1, ":", accountAddresses[i]);
-            console.log("ETH balance:", accountAddresses[i].balance);
-        }
-    }
     
     function _verifyDeployment(address deployer) internal view {
         require(memeFactory.owner() == deployer, "MemeFactory owner mismatch");
         require(memePlatform.owner() == deployer, "MemePlatform owner mismatch");
         require(bondingCurve.owner() == deployer, "BondingCurve owner mismatch");
+        require(liquidityManager.owner() == deployer, "LiquidityManager owner mismatch");
         
         require(address(memePlatform.memeFactory()) == address(memeFactory), "MemePlatform Factory reference mismatch");
         require(memeFactory.bondingCurveContract() == address(bondingCurve), "MemeFactory BondingCurve reference mismatch");
-        require(bondingCurve.authorizedCallers(address(memeFactory)), "MemeFactory not authorized for BondingCurve");
-        require(bondingCurve.memePlatform() == address(memePlatform), "BondingCurve MemePlatform reference mismatch");
+        require(bondingCurve.memeFactory() == address(memeFactory), "BondingCurve MemeFactory reference mismatch");
+        require(bondingCurve.liquidityManager() == address(liquidityManager), "BondingCurve LiquidityManager reference mismatch");
+        require(liquidityManager.bondingCurve() == address(bondingCurve), "LiquidityManager BondingCurve reference mismatch");
         
         console.log("All contract deployment verification passed");
     }
@@ -124,14 +125,16 @@ contract DeployLocalScript is Script {
         console.log("RPC URL: http://127.0.0.1:8545");
         console.log("Chain ID: 31337");
         console.log("Contract Addresses:");
-        console.log("MemeFactory   :", address(memeFactory));
-        console.log("MemePlatform  :", address(memePlatform));
-        console.log("BondingCurve  :", address(bondingCurve));
+        console.log("FeeManager       :", address(feeManager));
+        console.log("MemeFactory      :", address(memeFactory));
+        console.log("MemePlatform     :", address(memePlatform));
+        console.log("BondingCurve     :", address(bondingCurve));
+        console.log("LiquidityManager :", address(liquidityManager));
         console.log("Configuration:");
-        console.log("Creation Fee  :", CREATION_FEE);
-        console.log("Platform Fee  :", PLATFORM_FEE_PERCENTAGE, "basis points (2%)");
-        console.log("Creator Fee   :", CREATOR_FEE_PERCENTAGE, "basis points (3%)");
-        console.log("Test Accounts:", accountAddresses.length);
+        console.log("Creation Fee     :", CREATION_FEE);
+        console.log("Platform Fee     :", PLATFORM_FEE_PERCENTAGE, "basis points (2%)");
+        console.log("Creator Fee      :", CREATOR_FEE_PERCENTAGE, "basis points (3%)");
+        console.log("Uniswap V2 Router:", UNISWAP_V2_ROUTER);
     }
     
     /**
@@ -147,9 +150,11 @@ contract DeployLocalScript is Script {
         console.log("Account2: 0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a");
         console.log("Account3: 0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6");
         console.log("Frontend Environment Variables:");
+        console.log("NEXT_PUBLIC_FEE_MANAGER_ADDRESS=", address(feeManager));
         console.log("NEXT_PUBLIC_MEME_FACTORY_ADDRESS=", address(memeFactory));
         console.log("NEXT_PUBLIC_BONDING_CURVE_ADDRESS=", address(bondingCurve));
         console.log("NEXT_PUBLIC_MEME_PLATFORM_ADDRESS=", address(memePlatform));
+        console.log("NEXT_PUBLIC_LIQUIDITY_MANAGER_ADDRESS=", address(liquidityManager));
         console.log("NEXT_PUBLIC_NETWORK_RPC=http://127.0.0.1:8545");
         console.log("NEXT_PUBLIC_CHAIN_ID=31337");
         console.log("Happy testing!");

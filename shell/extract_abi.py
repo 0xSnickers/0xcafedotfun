@@ -120,7 +120,9 @@ def main():
         ("MemeFactory", "MemeFactory.sol"),
         ("MemePlatform", "MemePlatform.sol"),
         ("BondingCurve", "BondingCurve.sol"),
-        ("MemeToken", "MemeToken.sol")
+        ("MemeToken", "MemeToken.sol"),
+        ("FeeManager", "FeeManager.sol"),
+        ("LiquidityManager", "LiquidityManager.sol")
     ]
     
     if not args.quiet:

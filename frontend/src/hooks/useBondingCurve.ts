@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { useChainId } from 'wagmi';
-import { readContract, writeContract } from 'wagmi/actions';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useChainId, useAccount, useWriteContract, useBalance } from 'wagmi';
+import { readContract, writeContract, waitForTransactionReceipt } from 'wagmi/actions';
 import { parseUnits, formatUnits } from 'ethers';
 import { config } from '../config/wagmi';
-import { BONDING_CURVE_ABI } from '../config/abis';
+import { BONDING_CURVE_ABI, MEME_TOKEN_ABI } from '../config/abis';
 import { CONTRACT_CONSTANTS, getContractAddresses } from '../config/contracts';
 
 export interface TokenPriceInfo {
@@ -47,61 +47,6 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-// 缓存管理
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-  key: string;
-}
-
-class RpcCache {
-  private cache = new Map<string, CacheEntry<any>>();
-  private readonly TTL = 30000; // 30秒缓存
-
-  set<T>(key: string, data: T): void {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      key
-    });
-  }
-
-  get<T>(key: string): T | null {
-    const entry = this.cache.get(key);
-    if (!entry) return null;
-    
-    if (Date.now() - entry.timestamp > this.TTL) {
-      this.cache.delete(key);
-      return null;
-    }
-    
-    return entry.data;
-  }
-
-  clear(): void {
-    this.cache.clear();
-  }
-
-  // 清理过期缓存
-  cleanup(): void {
-    const now = Date.now();
-    for (const [key, entry] of this.cache.entries()) {
-      if (now - entry.timestamp > this.TTL) {
-        this.cache.delete(key);
-      }
-    }
-  }
-}
-
-const rpcCache = new RpcCache();
-
-// 定期清理缓存
-if (typeof window !== 'undefined') {
-  setInterval(() => {
-    rpcCache.cleanup();
-  }, 60000); // 每分钟清理一次
-}
-
 // 获取代币购买价格
 export function useBuyPrice(tokenAddress: string) {
   const chainId = useChainId();
@@ -114,14 +59,6 @@ export function useBuyPrice(tokenAddress: string) {
   const calculateBuyPrice = useCallback(async (tokenAmount: string) => {
     if (!tokenAddress || !tokenAmount || !contractAddresses.BONDING_CURVE) {
       setPriceInfo(null);
-      return;
-    }
-
-    // 检查缓存
-    const cacheKey = `buyPrice_${tokenAddress}_${tokenAmount}_${chainId}`;
-    const cachedResult = rpcCache.get<TokenPriceInfo>(cacheKey);
-    if (cachedResult) {
-      setPriceInfo(cachedResult);
       return;
     }
 
@@ -169,8 +106,6 @@ export function useBuyPrice(tokenAddress: string) {
       console.log('calculateBuyPrice success:', priceData);
       
       setPriceInfo(priceData);
-      // 缓存结果
-      rpcCache.set(cacheKey, priceData);
       
     } catch (err) {
       if (abortControllerRef.current?.signal.aborted) {
@@ -182,7 +117,7 @@ export function useBuyPrice(tokenAddress: string) {
       setPriceInfo(null);
     } finally {
       if (!abortControllerRef.current?.signal.aborted) {
-        setIsLoading(false);
+      setIsLoading(false);
       }
     }
   }, [tokenAddress, contractAddresses.BONDING_CURVE, chainId]);
@@ -207,14 +142,6 @@ export function useSellPrice(tokenAddress: string) {
   const calculateSellPrice = useCallback(async (tokenAmount: string) => {
     if (!tokenAddress || !tokenAmount || !contractAddresses.BONDING_CURVE) {
       setPriceInfo(null);
-      return;
-    }
-
-    // 检查缓存
-    const cacheKey = `sellPrice_${tokenAddress}_${tokenAmount}_${chainId}`;
-    const cachedResult = rpcCache.get<SellPriceInfo>(cacheKey);
-    if (cachedResult) {
-      setPriceInfo(cachedResult);
       return;
     }
 
@@ -260,8 +187,6 @@ export function useSellPrice(tokenAddress: string) {
       };
 
       setPriceInfo(sellData);
-      // 缓存结果
-      rpcCache.set(cacheKey, sellData);
       
     } catch (err) {
       if (abortControllerRef.current?.signal.aborted) {
@@ -273,7 +198,7 @@ export function useSellPrice(tokenAddress: string) {
       setPriceInfo(null);
     } finally {
       if (!abortControllerRef.current?.signal.aborted) {
-        setIsLoading(false);
+      setIsLoading(false);
       }
     }
   }, [tokenAddress, contractAddresses.BONDING_CURVE, chainId]);
@@ -298,14 +223,6 @@ export function useTokensForETH(tokenAddress: string) {
   const calculateTokensForETH = useCallback(async (ethAmount: string) => {
     if (!tokenAddress || !ethAmount || !contractAddresses.BONDING_CURVE) {
       setTokenAmount(null);
-      return;
-    }
-
-    // 检查缓存
-    const cacheKey = `tokensForETH_${tokenAddress}_${ethAmount}_${chainId}`;
-    const cachedResult = rpcCache.get<bigint>(cacheKey);
-    if (cachedResult) {
-      setTokenAmount(cachedResult);
       return;
     }
 
@@ -335,8 +252,6 @@ export function useTokensForETH(tokenAddress: string) {
 
       const tokenAmountResult = result as bigint;
       setTokenAmount(tokenAmountResult);
-      // 缓存结果
-      rpcCache.set(cacheKey, tokenAmountResult);
       
     } catch (err) {
       if (abortControllerRef.current?.signal.aborted) {
@@ -348,7 +263,7 @@ export function useTokensForETH(tokenAddress: string) {
       setTokenAmount(null);
     } finally {
       if (!abortControllerRef.current?.signal.aborted) {
-        setIsLoading(false);
+      setIsLoading(false);
       }
     }
   }, [tokenAddress, contractAddresses.BONDING_CURVE, chainId]);
@@ -373,14 +288,6 @@ export function useCurveParams(tokenAddress: string) {
   const fetchCurveParams = useCallback(async () => {
     if (!tokenAddress || !contractAddresses.BONDING_CURVE) {
       setCurveParams(null);
-      return;
-    }
-
-    // 检查缓存
-    const cacheKey = `curveParams_${tokenAddress}_${chainId}`;
-    const cachedResult = rpcCache.get<CurveParams>(cacheKey);
-    if (cachedResult) {
-      setCurveParams(cachedResult);
       return;
     }
 
@@ -427,8 +334,6 @@ export function useCurveParams(tokenAddress: string) {
       };
 
       setCurveParams(paramsData);
-      // 缓存结果
-      rpcCache.set(cacheKey, paramsData);
       
     } catch (err) {
       if (abortControllerRef.current?.signal.aborted) {
@@ -440,8 +345,8 @@ export function useCurveParams(tokenAddress: string) {
       setCurveParams(null);
     } finally {
       if (!abortControllerRef.current?.signal.aborted) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
+    }
     }
   }, [tokenAddress, contractAddresses.BONDING_CURVE, chainId]);
 
@@ -465,6 +370,15 @@ export function useBuyTokens() {
     ethAmount: string,
     minTokenAmount: string
   ) => {
+    console.log('🚀 [BUY HOOK DEBUG] buyTokens - 开始执行购买交易');
+    console.log('🚀 [BUY HOOK DEBUG] 输入参数:', {
+      tokenAddress,
+      ethAmount,
+      minTokenAmount,
+      chainId,
+      contractAddress: contractAddresses.BONDING_CURVE
+    });
+    
     setIsLoading(true);
     setError(null);
 
@@ -472,6 +386,25 @@ export function useBuyTokens() {
       const ethAmountBigInt = parseUnits(ethAmount, CONTRACT_CONSTANTS.ETH_DECIMALS);
       const minTokenAmountBigInt = parseUnits(minTokenAmount, 18);
       
+      console.log('🔍 [BUY HOOK DEBUG] 解析后的参数:', {
+        ethAmountBigInt: ethAmountBigInt.toString(),
+        minTokenAmountBigInt: minTokenAmountBigInt.toString(),
+        ethAmountBigIntHex: '0x' + ethAmountBigInt.toString(16),
+        minTokenAmountBigIntHex: '0x' + minTokenAmountBigInt.toString(16)
+      });
+      
+      console.log('🔍 [BUY HOOK DEBUG] 合约调用参数:', {
+        address: contractAddresses.BONDING_CURVE,
+        functionName: 'buyTokens',
+        args: [
+          tokenAddress,
+          minTokenAmountBigInt.toString()
+        ],
+        value: ethAmountBigInt.toString(),
+        valueHex: '0x' + ethAmountBigInt.toString(16)
+      });
+      
+      console.log('🚀 [BUY HOOK DEBUG] 调用 writeContract');
       const hash = await writeContract(config, {
         address: contractAddresses.BONDING_CURVE as `0x${string}`,
         abi: BONDING_CURVE_ABI,
@@ -482,16 +415,36 @@ export function useBuyTokens() {
         ],
         value: ethAmountBigInt, // 直接发送ETH
       });
-
+      
+      console.log('✅ [BUY HOOK DEBUG] writeContract 成功，交易哈希:', hash);
       return hash;
+      
     } catch (err) {
+      console.error('❌ [BUY HOOK DEBUG] buyTokens 异常:', err);
+      console.error('❌ [BUY HOOK DEBUG] 错误详情:', {
+        message: err instanceof Error ? err.message : 'Unknown error',
+        name: err instanceof Error ? err.name : 'Unknown',
+        stack: err instanceof Error ? err.stack : undefined,
+        fullError: err
+      });
+      
+      // 特别检查余额不足错误
+      if (err instanceof Error) {
+        if (err.message.includes('insufficient funds') || 
+            err.message.includes('exceeds the balance') ||
+            err.message.includes('CallExecutionError')) {
+          console.error('❌ [BUY HOOK DEBUG] 检测到余额不足错误:', err.message);
+        }
+      }
+      
       const error = err instanceof Error ? err : new Error('Failed to buy tokens');
       setError(error);
       throw error;
     } finally {
+      console.log('🏁 [BUY HOOK DEBUG] buyTokens 结束');
       setIsLoading(false);
     }
-  }, [contractAddresses.BONDING_CURVE]);
+  }, [contractAddresses.BONDING_CURVE, chainId]);
 
   return {
     buyTokens,
@@ -501,104 +454,92 @@ export function useBuyTokens() {
 }
 
 // 出售代币
-export function useSellTokens() {
+const useSellTokens = () => {
+  const { writeContractAsync, isPending: isSelling, error: sellError } = useWriteContract();
   const chainId = useChainId();
   const contractAddresses = getContractAddresses(chainId);
+
+  const sellTokens = useCallback(async (tokenAddress: string, amount: string, minEthReceived: string) => {
+    if (!BONDING_CURVE_ABI || !contractAddresses.BONDING_CURVE) {
+      throw new Error("Contract address or ABI not found");
+    }
+    try {
+      console.log('[SELL HOOK DEBUG] Input parameters:');
+      console.log('  - tokenAddress:', tokenAddress);
+      console.log('  - amount (string):', amount);
+      console.log('  - minEthReceived (string):', minEthReceived);
+      
+      const tokenAmount = parseUnits(amount, 18);
+      const minEthAmount = parseUnits(minEthReceived, 18);
+      
+      console.log('[SELL HOOK DEBUG] Parsed values:');
+      console.log('  - tokenAmount (BigInt):', tokenAmount.toString());
+      console.log('  - minEthAmount (BigInt):', minEthAmount.toString());
+      console.log('  - contract address:', contractAddresses.BONDING_CURVE);
+
+      return await writeContractAsync({
+        address: contractAddresses.BONDING_CURVE as `0x${string}`,
+        abi: BONDING_CURVE_ABI,
+        functionName: 'sellTokens',
+        args: [tokenAddress as `0x${string}`, tokenAmount, minEthAmount],
+      });
+    } catch (e: any) {
+      console.error("Sell tokens error:", e);
+      throw e;
+    }
+  }, [writeContractAsync, contractAddresses.BONDING_CURVE]);
+
+  return { sellTokens, isSelling, sellError };
+};
+
+// 检查Token是否已毕业
+export function useTokenGraduationStatus(tokenAddress: string) {
+  const chainId = useChainId();
+  const contractAddresses = getContractAddresses(chainId);
+  const [isGraduated, setIsGraduated] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const sellTokens = useCallback(async (
-    tokenAddress: string,
-    tokenAmount: string,
-    minEthAmount: string,
-    userAddress: string
-  ) => {
+  const checkGraduationStatus = useCallback(async () => {
+    if (!tokenAddress || !contractAddresses.BONDING_CURVE) {
+      setIsGraduated(null);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      const tokenAmountBigInt = parseUnits(tokenAmount, 18);
-      const minEthAmountBigInt = parseUnits(minEthAmount, CONTRACT_CONSTANTS.ETH_DECIMALS);
-      
-      // 首先检查授权额度
-      console.log('检查Token授权额度...');
-      const allowance = await readContract(config, {
-        address: tokenAddress as `0x${string}`,
-        abi: [
-          {
-            "inputs": [{"type": "address", "name": "owner"}, {"type": "address", "name": "spender"}],
-            "name": "allowance",
-            "outputs": [{"type": "uint256"}],
-            "stateMutability": "view",
-            "type": "function"
-          }
-        ],
-        functionName: 'allowance',
-        args: [
-          userAddress as `0x${string}`,
-          contractAddresses.BONDING_CURVE as `0x${string}`
-        ],
-      }) as bigint;
-
-      console.log('当前授权额度:', formatUnits(allowance, 18));
-      console.log('需要授权额度:', formatUnits(tokenAmountBigInt, 18));
-
-      // 如果授权额度不足，先进行授权
-      if (allowance < tokenAmountBigInt) {
-        console.log('授权额度不足，正在进行授权...');
-        
-        const approveHash = await writeContract(config, {
-          address: tokenAddress as `0x${string}`,
-          abi: [
-            {
-              "inputs": [{"type": "address", "name": "spender"}, {"type": "uint256", "name": "amount"}],
-              "name": "approve",
-              "outputs": [{"type": "bool"}],
-              "stateMutability": "nonpayable",
-              "type": "function"
-            }
-          ],
-          functionName: 'approve',
-          args: [
-            contractAddresses.BONDING_CURVE as `0x${string}`,
-            tokenAmountBigInt
-          ],
-        });
-
-        console.log('授权交易hash:', approveHash);
-        
-        // 等待授权交易确认
-        console.log('等待授权交易确认...');
-        // 这里可以添加等待确认的逻辑，但为了简化先继续
-      }
-
-      // 进行出售交易
-      console.log('开始出售Token...');
-      const hash = await writeContract(config, {
+      const result = await readContract(config, {
         address: contractAddresses.BONDING_CURVE as `0x${string}`,
         abi: BONDING_CURVE_ABI,
-        functionName: 'sellTokens',
-        args: [
-          tokenAddress as `0x${string}`,
-          tokenAmountBigInt,
-          minEthAmountBigInt
-        ],
+        functionName: 'curveParams',
+        args: [tokenAddress as `0x${string}`],
       });
 
-      console.log('出售交易hash:', hash);
-      return hash;
+      // curveParams 返回的结构体包含: [k, targetSupply, targetPrice, initialPrice, currentSupply, graduated, uniswapPair, liquidityTokens]
+      const params = result as [bigint, bigint, bigint, bigint, bigint, boolean, string, bigint];
+      const graduated = params[5]; // 第6个字段是 graduated
+      
+      console.log('checkGraduationStatus result:', {
+        tokenAddress,
+        graduated,
+        allParams: params
+      });
+      
+      setIsGraduated(graduated);
     } catch (err) {
-      console.error('sellTokens error:', err);
-      const error = err instanceof Error ? err : new Error('Failed to sell tokens');
-      setError(error);
-      throw error;
+      console.error('checkGraduationStatus error:', err);
+      setError(err instanceof Error ? err : new Error('Failed to check graduation status'));
+      setIsGraduated(null);
     } finally {
       setIsLoading(false);
     }
-  }, [contractAddresses.BONDING_CURVE, chainId]);
+  }, [tokenAddress, contractAddresses.BONDING_CURVE]);
 
   return {
-    sellTokens,
+    isGraduated,
+    checkGraduationStatus,
     isLoading,
     error,
   };
@@ -623,15 +564,7 @@ export function useTokenAllowance(tokenAddress: string, spenderAddress: string) 
     try {
       const result = await readContract(config, {
         address: tokenAddress as `0x${string}`,
-        abi: [
-          {
-            "inputs": [{"type": "address", "name": "owner"}, {"type": "address", "name": "spender"}],
-            "name": "allowance",
-            "outputs": [{"type": "uint256"}],
-            "stateMutability": "view",
-            "type": "function"
-          }
-        ],
+        abi: MEME_TOKEN_ABI,
         functionName: 'allowance',
         args: [userAddress as `0x${string}`, spenderAddress as `0x${string}`],
       });
@@ -668,24 +601,27 @@ export function useApproveToken() {
     setError(null);
 
     try {
-      const hash = await writeContract(config, {
-        address: tokenAddress as `0x${string}`,
-        abi: [
-          {
-            "inputs": [{"type": "address", "name": "spender"}, {"type": "uint256", "name": "amount"}],
-            "name": "approve",
-            "outputs": [{"type": "bool"}],
-            "stateMutability": "nonpayable",
-            "type": "function"
-          }
-        ],
-        functionName: 'approve',
-        args: [spenderAddress as `0x${string}`, amount],
+      // 使用无限额度授权 (2^256 - 1)
+      const infiniteAmount = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+      
+      console.log('🔍 [APPROVE DEBUG] 开始无限额度授权:', {
+        tokenAddress,
+        spenderAddress,
+        requestedAmount: amount.toString(),
+        infiniteAmount: infiniteAmount.toString()
       });
 
+      const hash = await writeContract(config, {
+        address: tokenAddress as `0x${string}`,
+        abi: MEME_TOKEN_ABI,
+        functionName: 'approve',
+        args: [spenderAddress as `0x${string}`, infiniteAmount],
+      });
+
+      console.log('✅ [APPROVE DEBUG] 无限额度授权交易已提交:', hash);
       return hash;
     } catch (err) {
-      console.error('approveToken error:', err);
+      console.error('❌ [APPROVE DEBUG] approveToken error:', err);
       const error = err instanceof Error ? err : new Error('Failed to approve token');
       setError(error);
       throw error;
@@ -713,7 +649,7 @@ export function useBondingCurve(tokenAddress: string) {
   const buyTokens = useBuyTokens();
   const sellTokens = useSellTokens();
   
-  return {
+  return useMemo(() => ({
     // 价格计算
     priceInfo: buyPrice.priceInfo,
     calculateBuyPrice: buyPrice.calculateBuyPrice,
@@ -736,7 +672,7 @@ export function useBondingCurve(tokenAddress: string) {
     isTokenAmountLoading: tokensForETH.isLoading,
     isCurveParamsLoading: curveParams.isLoading,
     isBuying: buyTokens.isLoading,
-    isSelling: sellTokens.isLoading,
+    isSelling: sellTokens.isSelling,
     
     // 错误状态
     buyPriceError: buyPrice.error,
@@ -744,8 +680,32 @@ export function useBondingCurve(tokenAddress: string) {
     tokenAmountError: tokensForETH.error,
     curveParamsError: curveParams.error,
     buyError: buyTokens.error,
-    sellError: sellTokens.error,
-  };
+    sellError: sellTokens.sellError,
+  }), [
+    // 价格计算 - 只依赖状态值，不依赖函数
+    buyPrice.priceInfo,
+    sellPrice.priceInfo,
+    tokensForETH.tokenAmount,
+    
+    // Curve参数
+    curveParams.curveParams,
+    
+    // 加载状态
+    buyPrice.isLoading,
+    sellPrice.isLoading,
+    tokensForETH.isLoading,
+    curveParams.isLoading,
+    buyTokens.isLoading,
+    sellTokens.isSelling,
+    
+    // 错误状态
+    buyPrice.error,
+    sellPrice.error,
+    tokensForETH.error,
+    curveParams.error,
+    buyTokens.error,
+    sellTokens.sellError,
+  ]);
 }
 
 // 工具函数
