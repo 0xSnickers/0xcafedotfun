@@ -419,20 +419,6 @@ const triggerLiquidityAdd = async (tokenAddress: string) => {
 };
 ```
 
-### Git 工作流
-```bash
-# 1. 创建功能分支
-git checkout -b feature/new-feature
-
-# 2. 提交更改
-git commit -m "feat: add new feature"
-
-# 3. 推送分支
-git push origin feature/new-feature
-
-# 4. 创建 Pull Request
-```
-
 ## 🌐 部署选项
 
 ### Vercel (推荐)
@@ -443,59 +429,3 @@ vercel --prod
 # 环境变量配置
 vercel env add NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID
 ```
-
-### 其他平台
-- **Netlify**: 支持 Next.js SSG
-- **AWS Amplify**: 全栈部署解决方案
-- **Railway**: 简单的云部署平台
-- **Docker**: 容器化部署
-
-## 🧪 测试策略
-
-### 单元测试
-```bash
-# 运行测试
-npm run test
-
-# 测试覆盖率
-npm run test:coverage
-```
-
-### E2E 测试
-```bash
-# Playwright 端到端测试
-npm run test:e2e
-```
-
-### 合约集成测试
-```bash
-# 本地测试网络
-npm run test:local
-```
-
-## 📚 相关文档
-
-- **主项目文档**: [../README.md](../README.md)
-- **后端文档**: [../backend/README.md](../backend/README.md)
-- **智能合约**: [../src/](../src/)
-- **部署脚本**: [../local-deploy.sh](../local-deploy.sh)
-
-## 🤝 贡献指南
-
-1. **Fork** 本仓库
-2. **创建功能分支**: `git checkout -b feature/frontend-enhancement`
-3. **编写测试**: 确保新功能有对应测试
-4. **提交代码**: `git commit -m "feat: add UI enhancement"`
-5. **推送分支**: `git push origin feature/frontend-enhancement`
-6. **创建 PR**: 详细描述更改内容
-
-### 代码规范
-- 使用 TypeScript 严格模式
-- 遵循 ESLint 和 Prettier 规则
-- 组件使用 React 函数组件
-- 保持组件单一职责
-
----
-
-**🎨 让我们一起打造最佳的 Web3 用户体验！**
-
