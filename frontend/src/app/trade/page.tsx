@@ -253,10 +253,36 @@ function TradePageContent() {
               type="text"
               size="small"
               icon={<CopyOutlined />}
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation();
-                navigator.clipboard.writeText(token.address);
-                message.success('地址已复制');
+                try {
+                  // 检查浏览器是否支持 Clipboard API
+                  if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(token.address);
+                    message.success('地址已复制到剪贴板');
+                  } else {
+                    // 降级方案：使用传统的复制方法
+                    const textArea = document.createElement('textarea');
+                    textArea.value = token.address;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    textArea.style.top = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    try {
+                      document.execCommand('copy');
+                      message.success('地址已复制到剪贴板');
+                    } catch (err) {
+                      console.error('复制失败:', err);
+                      message.error('复制失败，请手动复制地址');
+                    }
+                    textArea.remove();
+                  }
+                } catch (err) {
+                  console.error('复制地址失败:', err);
+                  message.error('复制失败，请手动复制地址');
+                }
               }}
               className="text-slate-400 hover:text-blue-400 p-0"
             />

@@ -21,7 +21,6 @@ export default function RootLayout({
       <body className={` antialiased`}>
         <Providers>
           {children}
-          <DebugPanel />
         </Providers>
       </body>
     </html>

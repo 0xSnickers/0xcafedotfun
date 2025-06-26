@@ -232,7 +232,7 @@ const CreateTokenPageContent = () => {
   const [creationFee] = useState<string>('0.001');
   const [txHash, setTxHash] = useState<string>('');
   const [useVanity, setUseVanity] = useState(false);
-
+  console.log('process.env.NEXT_PUBLIC_NETWORK_RPC->', process.env.NEXT_PUBLIC_NETWORK_RPC);
   // 确保组件已挂载，防止 hydration 错误
   useEffect(() => {
     setMounted(true);

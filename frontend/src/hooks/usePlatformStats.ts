@@ -126,7 +126,12 @@ export function usePlatformStats(chainId?: number) {
         let totalVolumeWei = BigInt(0);
         const creators = new Set<string>();
         
-        const todayStart = Math.floor(Date.now() / 1000) - (24 * 60 * 60);
+        // 修复今日创建数量计算 - 使用当地时区的今日开始时间
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        const todayStartTimestamp = Math.floor(todayStart.getTime() / 1000);
+        
+        console.log('今日开始时间戳:', todayStartTimestamp, '当前时间:', Math.floor(Date.now() / 1000));
         
         // 批量获取代币信息，限制并发数量以避免RPC限制
         const batchSize = 5;
@@ -145,9 +150,15 @@ export function usePlatformStats(chainId?: number) {
               
               creators.add(tokenInfo.creator.toLowerCase());
               
-              // 检查是否是今天创建的
-              if (Number(tokenInfo.createdAt) >= todayStart) {
+              // 检查是否是今天创建的 - 使用修正后的时间比较
+              const tokenCreatedAt = Number(tokenInfo.createdAt);
+              console.log(`代币 ${tokenAddress} 创建时间:`, tokenCreatedAt, '今日开始:', todayStartTimestamp);
+              
+              if (tokenCreatedAt >= todayStartTimestamp) {
                 todayCount++;
+                console.log(`✅ 代币 ${tokenAddress} 是今日创建的`);
+              } else {
+                console.log(`❌ 代币 ${tokenAddress} 不是今日创建的`);
               }
               
               // 获取代币在Bonding Curve中的状态

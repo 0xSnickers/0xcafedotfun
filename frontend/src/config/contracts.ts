@@ -39,7 +39,7 @@ export const NETWORK_CONFIG = {
   localhost: {
     chainId: 31337,
     name: 'Local Testnet',
-    rpcUrl: 'http://127.0.0.1:8545',
+    rpcUrl: process.env.NEXT_PUBLIC_NETWORK_RPC || '',
     blockExplorer: '',
   },
 } as const;

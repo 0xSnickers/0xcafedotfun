@@ -16,7 +16,7 @@ router.use('/monitor', monitorRouter)
  */
 router.get('/getStorageAt/:address', async (req: any, res: any) => {
     try {
-        const address = req.params.address as `0x${string}`
+    const address = req.params.address as `0x${string}`
         const slot = parseInt(req.query.slot as string, 10)
         
         if (isNaN(slot)) {
@@ -27,7 +27,7 @@ router.get('/getStorageAt/:address', async (req: any, res: any) => {
             })
         }
         
-        const data = await getStorageAt(address, slot)
+    const data = await getStorageAt(address, slot)
         res.json({ 
             code: 0, 
             message: 'success', 

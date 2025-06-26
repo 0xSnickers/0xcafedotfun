@@ -81,7 +81,8 @@ def update_frontend_env(contracts: dict, env_file: str = "frontend/.env.local") 
             'NEXT_PUBLIC_BONDING_CURVE_ADDRESS': contracts.get('BondingCurve', ''),
             'NEXT_PUBLIC_FEE_MANAGER_ADDRESS': contracts.get('FeeManager', ''),
             'NEXT_PUBLIC_LIQUIDITY_MANAGER_ADDRESS': contracts.get('LiquidityManager', ''),
-            'NEXT_PUBLIC_NETWORK_RPC': 'http://127.0.0.1:8545',
+            # 'NEXT_PUBLIC_NETWORK_RPC': 'http://127.0.0.1:8545',
+            'NEXT_PUBLIC_NETWORK_RPC': 'http://192.168.5.34/:8545',
             'NEXT_PUBLIC_CHAIN_ID': '31337'
         }
         

@@ -25,7 +25,7 @@ export async function getStorageAt(address: `0x${string}`, slot: number) {
         const storageValue = await viemClient.getStorageAt({
         address: address,
             slot: slotHex
-        })
+    })
         
         if (!storageValue) {
             throw new Error(`Storage slot ${slot} is empty or not found`)

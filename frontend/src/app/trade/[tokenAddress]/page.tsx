@@ -357,7 +357,7 @@ function TokenTradePage() {
             message.error('获取代币详情失败: ' + errorMsg);
           }
         } else {
-          message.error('获取代币详情失败');
+        message.error('获取代币详情失败');
         }
         
         // 即使获取详情失败，也要标记为已加载，避免无限循环
@@ -617,9 +617,35 @@ function TokenTradePage() {
                                 type="text"
                                 size="small"
                                 icon={<CopyOutlined />}
-                                onClick={() => {
-                                  navigator.clipboard.writeText(tokenAddress.toLowerCase());
-                                  message.success('地址已复制');
+                                onClick={async () => {
+                                  try {
+                                    // 检查浏览器是否支持 Clipboard API
+                                    if (navigator.clipboard && window.isSecureContext) {
+                                      await navigator.clipboard.writeText(tokenAddress.toLowerCase());
+                                      message.success('地址已复制到剪贴板');
+                                    } else {
+                                      // 降级方案：使用传统的复制方法
+                                      const textArea = document.createElement('textarea');
+                                      textArea.value = tokenAddress.toLowerCase();
+                                      textArea.style.position = 'fixed';
+                                      textArea.style.left = '-999999px';
+                                      textArea.style.top = '-999999px';
+                                      document.body.appendChild(textArea);
+                                      textArea.focus();
+                                      textArea.select();
+                                      try {
+                                        document.execCommand('copy');
+                                        message.success('地址已复制到剪贴板');
+                                      } catch (err) {
+                                        console.error('复制失败:', err);
+                                        message.error('复制失败，请手动复制地址');
+                                      }
+                                      textArea.remove();
+                                    }
+                                  } catch (err) {
+                                    console.error('复制地址失败:', err);
+                                    message.error('复制失败，请手动复制地址');
+                                  }
                                 }}
                                 className="text-slate-400 hover:text-blue-400"
                               />

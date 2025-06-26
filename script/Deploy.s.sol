@@ -10,7 +10,7 @@ import "../src/FeeManager.sol";
 
 contract DeployScript is Script {
     // Uniswap V2 地址（Anvil 本地部署）
-    address constant UNISWAP_V2_ROUTER = 0x610178dA211FEF7D417bC0e6FeD39F05609AD788;
+    address constant UNISWAP_V2_ROUTER = 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0;
     
     // 部署配置
     uint256 public constant CREATION_FEE = 0.001 ether;

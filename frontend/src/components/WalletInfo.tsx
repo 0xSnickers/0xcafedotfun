@@ -21,7 +21,10 @@ const WalletInfo = forwardRef<WalletInfoRef>((props, ref) => {
   }), [refetchBalance]);
 
   return (
-    <ConnectButton />
+    <ConnectButton 
+      showBalance={true}
+      chainStatus="none"
+    />
   );
 });
 
