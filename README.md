@@ -1,6 +1,6 @@
-# 🚀 0xcafe.fun - MEME Token Launch Platform
+# 🚀 0xcafe.fun - MEME 代币发射平台
 
-A fully decentralized MEME token creation and trading platform with **Bonding Curve** mechanism for fair price discovery, auto-graduation system, and smart liquidity management.
+一个完整的去中心化 MEME 代币创造与交易平台，采用 **Bonding Curve** 机制实现公平价格发现、自动毕业系统和智能流动性管理。
 
 [![Platform Preview](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)](https://github.com/0xSnickers/0xcafedotfun)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
@@ -8,112 +8,6 @@ A fully decentralized MEME token creation and trading platform with **Bonding Cu
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
 
 ---
-
-## 📖 中文文档 | Chinese Documentation
-
-[点击这里查看中文版本](#-中文文档--chinese-documentation-1)
-
----
-
-## ✨ Core Features
-
-### 🎯 Bonding Curve Trading
-- **Dynamic Pricing**: Price grows with purchase volume to prevent manipulation
-- **Fair Discovery**: Early supporters get lower prices
-- **Auto Liquidity**: No manual market making needed
-
-### 🎓 Auto-Graduation System
-- **Market Cap Threshold**: Auto-graduate at 10 ETH market cap
-- **Uniswap Integration**: Auto-add liquidity to Uniswap V2
-- **Permanent Lock**: Liquidity locked forever, no rug pull
-- **Decentralized**: Renounce all permissions post-graduation
-
-### 🌟 Vanity Addresses
-- **Personalized**: Generate "0xcafe" prefixed contract addresses
-- **CREATE2**: Precompute addresses for uniqueness
-- **High Speed**: Local algorithm, 10,000+ attempts/sec
-
-### 🤖 Auto Liquidity Monitor
-- **Event Listening**: Real-time graduation detection
-- **Smart Execution**: Auto-call liquidity addition
-- **API Management**: RESTful control interface
-- **Error Handling**: Complete exception handling and retries
-
-### 💰 Fee Distribution
-- **Platform Fee**: 2% transaction fee
-- **Creator Share**: 3% revenue share for creators
-- **Sustainable**: Continuous income for platform and creators
-
-## 🏗️ Architecture
-
-```
-0xcafe.fun/
-├── 📁 src/              # Smart Contracts
-│   ├── MemeToken.sol      # ERC20 Token
-│   ├── MemeFactory.sol    # CREATE2 Factory
-│   ├── BondingCurve.sol   # Trading & Graduation
-│   ├── LiquidityManager.sol # Liquidity Mgmt
-│   └── FeeManager.sol     # Fee Mgmt
-├── 📁 frontend/         # Web App (Next.js)
-├── 📁 backend/          # Services (Node.js)
-└── 📁 script/           # Deployment Scripts
-```
-
-## 🚀 Quick Start
-
-### Prerequisites
-```bash
-# Install Foundry
-curl -L https://foundry.paradigm.xyz | bash
-foundryup
-
-# Install dependencies
-npm install
-cd frontend && npm install
-cd ../backend && npm install
-```
-
-### Local Development
-```bash
-# 1. Start local blockchain
-anvil
-
-# 2. Deploy contracts
-./local-deploy.sh
-
-# 3. Start backend (port 9000)
-cd backend && npm run dev
-
-# 4. Start frontend (port 3000)
-cd frontend && npm run dev
-```
-
-## 🔄 Workflow
-
-```mermaid
-graph TD
-    A[User Buys Tokens] --> B[Reach 10 ETH Market Cap]
-    B --> C[Trigger Graduation]
-    C --> D[Store Liquidity Data]
-    D --> E[Backend Detects Event]
-    E --> F[Add Liquidity to Uniswap]
-    F --> G[Lock LP Tokens]
-    G --> H[Renounce Permissions]
-```
-
-## �️ Tech Stack
-
-| Layer | Technologies |
-|-------|--------------|
-| **Smart Contracts** | Solidity 0.8.29, Foundry, OpenZeppelin |
-| **Frontend** | Next.js 14, TypeScript, RainbowKit, wagmi, Ant Design, Tailwind |
-| **Backend** | Node.js, Express, TypeScript, Viem |
-
----
-
-## 📖 中文文档 | Chinese Documentation
-
-一个完整的去中心化 MEME 代币创造与交易平台，采用 **Bonding Curve** 机制实现公平价格发现、自动毕业系统和智能流动性管理。
 
 ## ✨ 核心特性
 
@@ -159,7 +53,7 @@ graph TD
 └── 📁 script/           # 部署脚本
 ```
 
-## � 快速开始
+## 🚀 快速开始
 
 ### 环境准备
 ```bash
@@ -188,14 +82,159 @@ cd backend && npm run dev
 cd frontend && npm run dev
 ```
 
+## 🔄 完整调用流程
+
+### 📊 代币购买流程
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as 用户
+    participant Frontend as 前端
+    participant BondingCurve as BondingCurve合约
+    participant FeeManager as FeeManager合约
+    participant MemeToken as MemeToken合约
+    participant LiquidityManager as LiquidityManager合约
+    
+    User->>Frontend: 选择代币并输入ETH数量
+    Frontend->>BondingCurve: 调用 calculateTokensForEthPrecise()
+    BondingCurve-->>Frontend: 返回可购买的代币数量
+    User->>Frontend: 确认购买
+    Frontend->>BondingCurve: 调用 buyTokens() 并发送ETH
+    BondingCurve->>BondingCurve: 验证参数和余额
+    BondingCurve->>BondingCurve: 更新 currentSupply
+    BondingCurve->>MemeToken: 调用 mint() 铸造代币给用户
+    MemeToken-->>BondingCurve: 铸造完成
+    BondingCurve->>MemeToken: 调用 setCurrentSupply() 更新供应量
+    BondingCurve->>FeeManager: 调用 handleBuyFees() 处理费用
+    FeeManager->>FeeManager: 计算并分配费用
+    FeeManager-->>BondingCurve: 返回费用信息
+    BondingCurve->>BondingCurve: 更新 totalRaised
+    BondingCurve->>BondingCurve: 调用 checkGraduationCondition() 检查毕业条件
+    alt 达到毕业条件
+        BondingCurve->>BondingCurve: 调用 _graduateToken()
+        BondingCurve->>BondingCurve: 调用 _prepareForGraduation()
+        BondingCurve->>BondingCurve: 计算流动性ETH和代币数量
+        BondingCurve->>MemeToken: 铸造流动性代币给LiquidityManager
+        BondingCurve->>MemeToken: 调用 setMinter(address(0)) 放弃铸币权
+        BondingCurve->>LiquidityManager: 发送ETH
+        BondingCurve->>LiquidityManager: 调用 storeLiquidityData()
+        LiquidityManager-->>BondingCurve: 存储完成
+    end
+    BondingCurve-->>Frontend: 触发 TokenBought 事件
+    Frontend-->>User: 显示购买成功
+```
+
+### 🎓 毕业与流动性添加流程
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Backend as 后端监控服务
+    participant LiquidityManager as LiquidityManager合约
+    participant MemeToken as MemeToken合约
+    participant UniswapRouter as Uniswap V2 Router
+    participant UniswapFactory as Uniswap V2 Factory
+    participant UniswapPair as Uniswap V2 Pair
+    participant DeadAddress as 黑洞地址
+    
+    Backend->>Backend: 监听 LiquidityDataStored 事件
+    Backend->>LiquidityManager: 调用 addLiquidityToUniswap()
+    LiquidityManager->>LiquidityManager: 验证流动性数据
+    LiquidityManager->>MemeToken: 检查代币余额
+    LiquidityManager->>MemeToken: 调用 approve() 授权Router
+    MemeToken-->>LiquidityManager: 授权成功
+    LiquidityManager->>UniswapRouter: 调用 addLiquidityETH()
+    UniswapRouter->>UniswapFactory: 调用 getPair() 获取交易对
+    alt 交易对不存在
+        UniswapFactory->>UniswapFactory: 调用 createPair() 创建交易对
+        UniswapFactory-->>UniswapRouter: 返回交易对地址
+    end
+    UniswapRouter->>UniswapPair: 转账代币和ETH
+    UniswapPair->>UniswapPair: 计算LP代币数量
+    UniswapPair->>UniswapPair: 铸造LP代币给LiquidityManager
+    UniswapPair-->>UniswapRouter: 返回LP代币
+    UniswapRouter-->>LiquidityManager: 返回交易结果
+    LiquidityManager->>LiquidityManager: 更新状态为 liquidityAdded=true
+    LiquidityManager->>LiquidityManager: 调用 _lockLiquidity()
+    LiquidityManager->>UniswapPair: 调用 transfer() 发送LP到黑洞地址
+    UniswapPair-->>LiquidityManager: 转账成功
+    LiquidityManager->>LiquidityManager: 更新状态为 liquidityLocked=true
+    LiquidityManager-->>Backend: 触发 LiquidityAdded 和 LiquidityLocked 事件
+    Backend-->>Backend: 更新监控状态
+```
+
+### 💱 毕业后代币交易流程
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as 用户
+    participant Frontend as 前端
+    participant UniswapRouter as Uniswap V2 Router
+    participant UniswapPair as Uniswap V2 Pair
+    
+    User->>Frontend: 选择代币并输入数量
+    Frontend->>UniswapPair: 查询储备量和价格
+    UniswapPair-->>Frontend: 返回当前价格
+    Frontend->>Frontend: 计算滑点和最小输出
+    User->>Frontend: 确认交易
+    Frontend->>UniswapRouter: 调用 swapExactETHForTokens() 或 swapExactTokensForETH()
+    UniswapRouter->>UniswapPair: 执行交换
+    UniswapPair->>UniswapPair: 按 x*y=k 公式计算
+    UniswapPair->>UniswapPair: 更新储备量
+    UniswapPair-->>UniswapRouter: 输出代币/ETH
+    UniswapRouter-->>User: 转账给用户
+    Frontend-->>User: 显示交易完成
+```
+
+## 🏪 本地 Uniswap V2 DEX
+
+为了本地开发和测试，我们供了完整的 Uniswap V2 DEX 实现，可以在开发环境中实现自动添加流动性功能。
+
+[![GitHub Repo](https://img.shields.io/badge/GitHub-0xcafe--uniswapV2--dex-blue?logo=github)](https://github.com/0xSnickers/0xcafe-uniswapV2-dex)
+
+### 🎯 核心功能
+- **完整 Uniswap V2 实现** - Factory、Router、Pair 合约
+- **本地测试** - 可部署到 Hardhat 网络
+- **流动性管理** - 添加/移除流动性测试
+- **代币交换** - 完整的 AMM 功能
+- **现代前端** - Next.js + RainbowKit 界面
+
+### 🚀 快速设置
+```bash
+# 克隆 DEX 仓库
+git clone https://github.com/0xSnickers/0xcafe-uniswapV2-dex.git
+cd 0xcafe-uniswapV2-dex
+
+# 安装依赖
+npm install
+
+# 启动本地网络并部署
+npx hardhat node
+npx hardhat run scripts/deploy.ts --network hardhat
+
+# 启动前端
+cd frontend && npm run dev
+```
+
+### 🔗 集成说明
+该 DEX 项目与 0xcafe.fun 无缝协作：
+- 在本地 0xcafe.fun 环境中使用部署的 Uniswap V2 合约
+- 端到端测试完整的毕业和流动性添加工作流
+- 验证流动性迁移前后的价格连续性
+
+## 🛠️ 技术栈
+
+| 层级 | 技术 |
+|-------|--------------|
+| **智能合约** | Solidity 0.8.29, Foundry, OpenZeppelin |
+| **前端** | Next.js 14, TypeScript, RainbowKit, wagmi, Ant Design, Tailwind |
+| **后端** | Node.js, Express, TypeScript, Viem |
+| **本地 DEX** | Hardhat, Uniswap V2, Next.js |
+
 ---
 
 ## ⭐ Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=0xSnickers/0xcafedotfun&type=Date)](https://star-history.com/#0xSnickers/0xcafedotfun&Date)
-
----
-
-## 📄 License
-
-MIT
