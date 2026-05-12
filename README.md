@@ -190,7 +190,7 @@ sequenceDiagram
 
 ## 🏪 本地 Uniswap V2 DEX
 
-为了本地开发和测试，我们供了完整的 Uniswap V2 DEX 实现，可以在开发环境中实现自动添加流动性功能。
+为了本地开发和测试，我提供了 Uniswap V2 DEX 实现，可以在开发环境中模拟实现自动添加流动性功能。
 
 [![GitHub Repo](https://img.shields.io/badge/GitHub-0xcafe--uniswapV2--dex-blue?logo=github)](https://github.com/0xSnickers/0xcafe-uniswapV2-dex)
 
