@@ -53,6 +53,16 @@
 └── 📁 script/           # 部署脚本
 ```
 
+## 🛠️ 技术栈
+
+| 层级 | 技术 |
+|-------|--------------|
+| **智能合约** | Solidity 0.8.29, Foundry, OpenZeppelin |
+| **前端** | Next.js 14, TypeScript, RainbowKit, wagmi, Ant Design, Tailwind |
+| **后端** | Node.js, Express, TypeScript, Viem |
+| **本地 DEX** | Hardhat, Uniswap V2, Next.js |
+
+
 ## 🚀 快速开始
 
 ### 环境准备
@@ -199,7 +209,6 @@ sequenceDiagram
 - **本地测试** - 可部署到 Hardhat 网络
 - **流动性管理** - 添加/移除流动性测试
 - **代币交换** - 完整的 AMM 功能
-- **现代前端** - Next.js + RainbowKit 界面
 
 ### 🚀 快速设置
 ```bash
@@ -217,21 +226,6 @@ npx hardhat run scripts/deploy.ts --network hardhat
 # 启动前端
 cd frontend && npm run dev
 ```
-
-### 🔗 集成说明
-该 DEX 项目与 0xcafe.fun 无缝协作：
-- 在本地 0xcafe.fun 环境中使用部署的 Uniswap V2 合约
-- 端到端测试完整的毕业和流动性添加工作流
-- 验证流动性迁移前后的价格连续性
-
-## 🛠️ 技术栈
-
-| 层级 | 技术 |
-|-------|--------------|
-| **智能合约** | Solidity 0.8.29, Foundry, OpenZeppelin |
-| **前端** | Next.js 14, TypeScript, RainbowKit, wagmi, Ant Design, Tailwind |
-| **后端** | Node.js, Express, TypeScript, Viem |
-| **本地 DEX** | Hardhat, Uniswap V2, Next.js |
 
 ---
 
