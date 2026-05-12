@@ -1,6 +1,6 @@
-# 🚀 0xcafe.fun - MEME 代币发射平台
+# 🚀 0xcafe.fun - MEME Launch 平台
 
-一个完整的去中心化 MEME 代币创造与交易平台，采用 **Bonding Curve** 机制实现公平价格发现、自动毕业系统和智能流动性管理。
+一个 MEME Launch 平台，采用 **Bonding Curve** 机制实现公平价格发现、自动毕业系统和智能流动性管理。
 
 [![Platform Preview](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)](https://github.com/0xSnickers/0xcafedotfun)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
