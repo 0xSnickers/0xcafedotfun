@@ -1,0 +1,1 @@
+ALTER TABLE "token_markets" ADD COLUMN "factory_address" text;

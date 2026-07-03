@@ -6,10 +6,9 @@ export function clearWalletStorage() {
 
   console.log('清理钱包存储...');
 
-  // 清理 WalletConnect 相关的存储
   const keysToRemove = [
     'walletconnect',
-    'WALLETCONNECT_DEEPLINK_CHOICE', 
+    'WALLETCONNECT_DEEPLINK_CHOICE',
     'wc@2:client:0.3//session',
     'wc@2:core:0.3//messages',
     'wc@2:core:0.3//subscription',
@@ -18,17 +17,16 @@ export function clearWalletStorage() {
     'wc@2:ethereum_provider:/optionalChains',
     'wc@2:ethereum_provider:/chainId',
     'wc@2:ethereum_provider:/accounts',
-    // Wagmi 相关
     'wagmi.cache',
     'wagmi.store',
     'wagmi.connected',
     'wagmi.wallet',
-    // RainbowKit 相关
-    'rk-recent',
-    'rainbow-recent-wallet',
+    'wallet.manualConnect',
+    '0xcafe-wallet-kit',
+    '0xcafe-wallet-kit:session',
   ];
 
-  keysToRemove.forEach(key => {
+  keysToRemove.forEach((key) => {
     try {
       localStorage.removeItem(key);
       sessionStorage.removeItem(key);
@@ -37,11 +35,10 @@ export function clearWalletStorage() {
     }
   });
 
-  // 清理以特定前缀开头的所有键
-  const prefixesToClear = ['wc@2:', 'wagmi.', 'rk-'];
-  
-  [...Object.keys(localStorage), ...Object.keys(sessionStorage)].forEach(key => {
-    prefixesToClear.forEach(prefix => {
+  const prefixesToClear = ['wc@2:', 'wagmi.', 'snk-wallet-kit', '0xcafe-wallet-kit'];
+
+  [...Object.keys(localStorage), ...Object.keys(sessionStorage)].forEach((key) => {
+    prefixesToClear.forEach((prefix) => {
       if (key.startsWith(prefix)) {
         try {
           localStorage.removeItem(key);
@@ -63,4 +60,4 @@ export function autoCleanWalletStorageInDev() {
   if (process.env.NODE_ENV === 'development') {
     clearWalletStorage();
   }
-} 
+}

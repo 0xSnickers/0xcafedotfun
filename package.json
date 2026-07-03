@@ -6,30 +6,27 @@
   "scripts": {
     "build": "forge build",
     "test": "forge test",
-    "deploy:local": "forge script script/MemePlatform.s.sol:MemePlatformDeployScript --rpc-url http://localhost:8545 --broadcast",
-    "deploy:sepolia": "forge script script/MemePlatform.s.sol:MemePlatformDeployScript --rpc-url $SEPOLIA_RPC_URL --broadcast --verify",
-    "create-token": "forge script script/MemePlatform.s.sol:CreateMemeTokenScript --rpc-url $RPC_URL --broadcast",
-    "start-anvil": "anvil --host 0.0.0.0",
     "lint": "forge fmt --check",
-    "format": "forge fmt"
+    "format": "forge fmt",
+    "docker:start:market-data": "docker compose -f docker-compose.postgres.yml up -d && docker compose -f docker-compose.redis.yml up -d",
+    "docker:reset:market-data": "docker compose -f docker-compose.postgres.yml down -v && docker compose -f docker-compose.redis.yml down -v",
+    "dev:doctor": "node ./shell/dev_doctor.mjs",
+    "deploy:local": "forge script script/DeployLocal.s.sol:DeployLocalScript --rpc-url local --broadcast && python3 ./shell/extract_contract_addresses.py ./broadcast/DeployLocal.s.sol/31337/run-latest.json --quiet && python3 ./shell/extract_abi.py --quiet",
+    "deploy:sepolia": "forge script script/DeploySepolia.s.sol:DeploySepoliaScript --rpc-url sepolia --broadcast && python3 ./shell/extract_contract_addresses.py ./broadcast/DeploySepolia.s.sol/11155111/run-latest.json --chain-id 11155111 --frontend-env frontend/.env.local.sepolia --backend-env backend/.env --quiet && python3 ./shell/extract_abi.py --quiet"
   },
   "keywords": [
     "meme",
     "token",
     "create2",
     "ethereum",
-    "solidity",
-    "foundry"
+    "solidity"
   ],
   "author": "MEME Platform Team",
   "license": "MIT",
-  "dependencies": {
-    "ethers": "^6.8.0"
-  },
   "devDependencies": {
     "@types/node": "^20.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
   }
-} 
+}

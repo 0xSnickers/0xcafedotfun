@@ -118,11 +118,10 @@ def main():
     # 定义要提取的合约
     contracts = [
         ("MemeFactory", "MemeFactory.sol"),
-        ("MemePlatform", "MemePlatform.sol"),
-        ("BondingCurve", "BondingCurve.sol"),
         ("MemeToken", "MemeToken.sol"),
-        ("FeeManager", "FeeManager.sol"),
-        ("LiquidityManager", "LiquidityManager.sol")
+        ("TokenMarket", "TokenMarket.sol"),
+        ("FeeVault", "FeeVault.sol"),
+        ("LiquidityManager", "LiquidityManager.sol"),
     ]
     
     if not args.quiet:

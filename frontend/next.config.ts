@@ -4,6 +4,10 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['antd'],
   },
+  turbopack: {
+    root: process.cwd(),
+  },
+  allowedDevOrigins: ['127.0.0.1'],
   // Handle webpack issues with external modules
   webpack: (config, { isServer }) => {
     config.resolve.fallback = {
@@ -12,7 +16,7 @@ const nextConfig: NextConfig = {
       net: false,
       tls: false,
     };
-    
+
     // Handle node modules resolution issues
     config.externals = config.externals || [];
     if (isServer) {
@@ -20,12 +24,17 @@ const nextConfig: NextConfig = {
         'pino-pretty': 'pino-pretty'
       });
     }
-    
+
     return config;
   },
   // Optimize images and fonts
   images: {
-    domains: ['fonts.gstatic.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'fonts.gstatic.com',
+      },
+    ],
   },
   // Transpile problematic packages
   transpilePackages: ['@ant-design/icons'],

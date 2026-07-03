@@ -1,460 +1,286 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { formatEther } from "ethers";
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Empty, Input, Layout, Spin } from 'antd';
 import {
-  Layout,
-  Card,
-  Input,
-  Button,
-  Typography,
-  Space,
-  Row,
-  Col,
-  Alert,
-  message,
-  Avatar,
-  Empty,
-  Badge,
-  Tag,
-  Spin,
-  Tabs
-} from 'antd';
-import {
-  ArrowLeftOutlined,
+  ArrowRightOutlined,
+  BarChartOutlined,
   FireOutlined,
   SearchOutlined,
-  RocketOutlined,
+  ThunderboltOutlined,
   TrophyOutlined,
-  UserOutlined,
-  CopyOutlined,
-  ThunderboltOutlined
 } from '@ant-design/icons';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAccount } from 'wagmi';
-import { readContract } from '@wagmi/core';
-import { config } from '../../config/wagmi';
-import { getContractAddresses, CONTRACT_CONSTANTS } from '../../config/contracts';
-import { MEME_PLATFORM_ABI, MEME_FACTORY_ABI, BONDING_CURVE_ABI } from '../../config/abis';
-import { formatAddress } from '../../hooks/useContracts';
-import WalletInfo from '../../components/WalletInfo';
+import {
+  formatCompactNumber,
+  formatEthAmount,
+  formatMarketPrice,
+  formatPercentChange,
+  getPercentChangeClassName,
+} from '@/lib/formatters/market';
 import UnifiedHeader from '../../components/UnifiedHeader';
+import MarketVolume from '../../components/market/MarketVolume';
+import { useTokenList } from '../../hooks/useTokenList';
 
 const { Content } = Layout;
-const { Title, Text } = Typography;
 
-interface TokenInfo {
-  address: string;
-  name: string;
-  symbol: string;
-  creator: string;
-  createdAt: number;
-  tokenImage: string;
-  description: string;
-  graduated: boolean;
-  marketCap?: string;
-  currentPrice?: string;
-}
+type MarketFilter = 'all' | 'active' | 'graduated';
 
 function TradePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tokenAddress = searchParams.get('token');
-  
-  const { chain } = useAccount();
-  const [mounted, setMounted] = useState(false);
-  const [tokenList, setTokenList] = useState<TokenInfo[]>([]);
-  const [loadingTokens, setLoadingTokens] = useState(false);
+  const { tokenList, isLoading, error } = useTokenList(true, 40);
   const [searchTerm, setSearchTerm] = useState('');
-
-  // 获取合约地址
-  const contractAddresses = mounted ? getContractAddresses(chain?.id) : { 
-    MEME_PLATFORM: null, 
-    MEME_FACTORY: null,
-    BONDING_CURVE: null 
-  };
+  const [filter, setFilter] = useState<MarketFilter>('all');
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (mounted && contractAddresses.MEME_PLATFORM && contractAddresses.MEME_FACTORY && contractAddresses.BONDING_CURVE) {
-      fetchTokenList();
-    }
-  }, [mounted, contractAddresses.MEME_PLATFORM, contractAddresses.MEME_FACTORY, contractAddresses.BONDING_CURVE]);
-
-  // 如果URL中有token参数，直接重定向到对应的交易页面
-  useEffect(() => {
-    if (tokenAddress && mounted) {
+    if (tokenAddress) {
       router.replace(`/trade/${tokenAddress}`);
     }
-  }, [tokenAddress, mounted, router]);
+  }, [router, tokenAddress]);
 
-  const fetchTokenList = async () => {
-    if (!contractAddresses.MEME_PLATFORM || !contractAddresses.MEME_FACTORY || !contractAddresses.BONDING_CURVE) return;
-    
-    setLoadingTokens(true);
-    try {
-      const allTokens = await readContract(config, {
-        address: contractAddresses.MEME_PLATFORM as `0x${string}`,
-        abi: MEME_PLATFORM_ABI,
-        functionName: 'getAllMemeTokens',
-        args: []
-      });
-
-      // 获取每个代币的详细信息
-      const tokenInfos: TokenInfo[] = [];
-      for (const tokenAddr of (allTokens as string[]).slice(0, 20)) { // 限制最多20个代币
-        try {
-          // 并行获取代币基本信息和毕业状态
-          const [tokenInfo, tokenDetails] = await Promise.allSettled([
-            // 从工厂合约获取代币信息
-            readContract(config, {
-              address: contractAddresses.MEME_FACTORY as `0x${string}`,
-              abi: MEME_FACTORY_ABI,
-              functionName: 'getMemeTokenInfo',
-              args: [tokenAddr as `0x${string}`],
-            }),
-            // 从Bonding Curve获取毕业状态和价格信息
-            readContract(config, {
-              address: contractAddresses.BONDING_CURVE as `0x${string}`,
-              abi: BONDING_CURVE_ABI,
-              functionName: 'getTokenDetails',
-              args: [tokenAddr as `0x${string}`]
-            })
-          ]);
-
-          if (tokenInfo.status === 'fulfilled') {
-            const info = tokenInfo.value as any;
-            let graduated = false;
-            let marketCap = '0';
-            let currentPrice = '0';
-
-            // 如果能获取到毕业状态信息
-            if (tokenDetails.status === 'fulfilled') {
-              const details = tokenDetails.value as unknown as [any, any, bigint, bigint];
-              const [params, , price, cap] = details;
-              graduated = params.graduated || false;
-              marketCap = formatEther(cap);
-              currentPrice = formatEther(price);
-            }
-
-          tokenInfos.push({
-            address: tokenAddr,
-              name: info.name,
-              symbol: info.symbol,
-              creator: info.creator,
-              createdAt: Number(info.createdAt),
-              tokenImage: info.tokenImage,
-              description: info.description,
-              graduated,
-              marketCap,
-              currentPrice
-            });
-          }
-        } catch (error) {
-          console.error(`获取代币 ${tokenAddr} 信息失败:`, error);
-        }
-      }
-      
-      setTokenList(tokenInfos);
-    } catch (error) {
-      console.error('获取代币列表失败:', error);
-      message.error('获取代币列表失败');
-    } finally {
-      setLoadingTokens(false);
-    }
-  };
-
-  const handleTokenSelect = (tokenAddr: string) => {
-    // 直接导航到具体的代币交易页面
-    router.push(`/trade/${tokenAddr}`);
-  };
-
-  // 分离毕业和未毕业的代币
-  const filteredTokens = tokenList.filter(token => 
-    token.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    token.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    token.address.toLowerCase().includes(searchTerm.toLowerCase())
+  const activeCount = tokenList.filter((token) => !token.graduated).length;
+  const graduatedCount = tokenList.length - activeCount;
+  const totalVolume = tokenList.reduce((sum, token) => sum + (token.volume24h || 0), 0);
+  const totalVolumeComplete = tokenList.every(
+    (token) => token.volume24h === null || token.volume24hComplete !== false,
   );
+  const avgMarketCap = tokenList.length
+    ? tokenList.reduce((sum, token) => sum + Number(token.marketCap), 0) / tokenList.length
+    : 0;
 
-  const activeTokens = filteredTokens.filter(token => !token.graduated);
-  const graduatedTokens = filteredTokens.filter(token => token.graduated);
+  const filteredTokens = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    return tokenList.filter((token) => {
+      const matchesFilter =
+        filter === 'all' ||
+        (filter === 'active' && !token.graduated) ||
+        (filter === 'graduated' && token.graduated);
+      const matchesQuery =
+        !query ||
+        token.name.toLowerCase().includes(query) ||
+        token.symbol.toLowerCase().includes(query) ||
+        token.address.toLowerCase().includes(query);
+      return matchesFilter && matchesQuery;
+    });
+  }, [filter, searchTerm, tokenList]);
 
-  // 渲染代币卡片
-  const renderTokenCard = (token: TokenInfo) => (
-    <Col xs={24} sm={12} lg={8} key={token.address}>
-      <Card
-        hoverable
-        className={`token-card ${token.graduated 
-          ? 'bg-gradient-to-br from-yellow-900/20 to-amber-900/20 border-yellow-500/30 hover:border-yellow-400/50' 
-          : 'bg-slate-700/30 border-slate-600 hover:border-slate-500'
-        } transition-all duration-200 hover:shadow-lg`}
-        onClick={() => handleTokenSelect(token.address)}
-        bodyStyle={{ padding: '16px' }}
-      >
-        <div className="space-y-3">
-          {/* 代币头部信息 */}
-          <div className="flex items-center space-x-3">
-            <div className="relative">
-              <Avatar 
-                src={token.tokenImage || '/favicon.png'} 
-                size={40}
-                className="shadow-md border border-slate-600"
-              />
-              {token.graduated && (
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center">
-                  <TrophyOutlined className="text-xs text-white" />
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2 mb-1">
-                <Text className="text-white font-bold text-sm">
-                  ${token.symbol}
-                </Text>
-                {token.graduated && (
-                  <Tag color="gold" className="text-xs px-1 py-0 border-0 bg-yellow-500/20">
-                    🎓
-                  </Tag>
-                )}
-              </div>
-              <Text className="text-slate-400 text-xs truncate block">
-                {token.name}
-              </Text>
-            </div>
-          </div>
+  const featuredMarkets = filteredTokens.slice(0, 4);
 
-          {/* 价格和市值信息 */}
-          {token.currentPrice && token.marketCap && (
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-slate-800/50 px-2 py-1 rounded">
-                <Text className="text-slate-400 text-xs block">当前价格</Text>
-                <Text className="text-green-400 text-xs font-mono">
-                  {parseFloat(token.currentPrice).toFixed(8)} ETH
-                </Text>
-              </div>
-              <div className="bg-slate-800/50 px-2 py-1 rounded">
-                <Text className="text-slate-400 text-xs block">市值</Text>
-                <Text className="text-blue-400 text-xs font-mono">
-                  {parseFloat(token.marketCap).toFixed(4)} ETH
-                </Text>
-              </div>
-            </div>
-          )}
+  const filters: Array<{ key: MarketFilter; label: string; count: number }> = [
+    { key: 'all', label: 'All markets', count: tokenList.length },
+    { key: 'active', label: 'Bonding Curve', count: activeCount },
+    { key: 'graduated', label: 'Launched', count: graduatedCount },
+  ];
 
-          {/* 代币地址 */}
-          <div className="flex items-center justify-between bg-slate-800/50 px-2 py-1 rounded">
-            <Text className="text-slate-400 text-xs font-mono">
-              {formatAddress(token.address)}
-            </Text>
-            <Button
-              type="text"
-              size="small"
-              icon={<CopyOutlined />}
-              onClick={async (e) => {
-                e.stopPropagation();
-                try {
-                  // 检查浏览器是否支持 Clipboard API
-                  if (navigator.clipboard && window.isSecureContext) {
-                    await navigator.clipboard.writeText(token.address);
-                    message.success('地址已复制到剪贴板');
-                  } else {
-                    // 降级方案：使用传统的复制方法
-                    const textArea = document.createElement('textarea');
-                    textArea.value = token.address;
-                    textArea.style.position = 'fixed';
-                    textArea.style.left = '-999999px';
-                    textArea.style.top = '-999999px';
-                    document.body.appendChild(textArea);
-                    textArea.focus();
-                    textArea.select();
-                    try {
-                      document.execCommand('copy');
-                      message.success('地址已复制到剪贴板');
-                    } catch (err) {
-                      console.error('复制失败:', err);
-                      message.error('复制失败，请手动复制地址');
-                    }
-                    textArea.remove();
-                  }
-                } catch (err) {
-                  console.error('复制地址失败:', err);
-                  message.error('复制失败，请手动复制地址');
-                }
-              }}
-              className="text-slate-400 hover:text-blue-400 p-0"
-            />
-          </div>
-
-          {/* 创建时间 */}
-          <div className="flex items-center justify-between text-xs">
-            <Text className="text-slate-500">
-              创建时间:
-            </Text>
-            <Text className="text-slate-400">
-              {(() => {
-                const now = Date.now() / 1000;
-                const diff = now - token.createdAt;
-                if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`;
-                if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
-                return `${Math.floor(diff / 86400)}天前`;
-              })()}
-            </Text>
-          </div>
-
-          {/* 交易按钮 */}
-          <Button
-            type="primary"
-            block
-            className={token.graduated 
-              ? "bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-500 hover:to-amber-500 border-0" 
-              : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 border-0"
-            }
-            onClick={(e) => {
-              e.stopPropagation();
-              handleTokenSelect(token.address);
-            }}
-          >
-            {token.graduated ? '🎓 查看详情' : '🚀 开始交易'}
-          </Button>
-        </div>
-      </Card>
-    </Col>
-  );
-
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-400 border-t-transparent mx-auto mb-4"></div>
-          <Text className="text-slate-300 block mt-4 text-lg">加载交易平台...</Text>
-        </div>
-      </div>
-    );
-  }
+  const marketHighlights = [
+    { label: 'Live markets', value: formatCompactNumber(tokenList.length), icon: <BarChartOutlined /> },
+    {
+      label: totalVolumeComplete ? '24H volume' : '24H volume · partial',
+      value: formatEthAmount(totalVolume),
+      icon: <ThunderboltOutlined />,
+    },
+    { label: 'Launched', value: formatCompactNumber(graduatedCount), icon: <TrophyOutlined /> },
+    { label: 'Avg. market cap', value: formatEthAmount(avgMarketCap), icon: <FireOutlined /> },
+  ];
 
   return (
-    <Layout className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-slate-900">
+    <Layout className="min-h-screen app-shell">
       <UnifiedHeader />
 
-      <Content className="p-4 lg:p-6">
-        <div className="max-w-6xl mx-auto">
-          {/* 统计信息 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl">
-              <div className="text-center">
-                <div className="flex items-center justify-center space-x-2 mb-2">
-                  <ThunderboltOutlined className="text-blue-400" />
-                  <Text className="text-blue-300 font-medium">活跃交易</Text>
+      <Content>
+        <section className="hero-shell trade-hero-shell">
+          <div className="hero-grid" aria-hidden="true" />
+
+          <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:grid-cols-[0.68fr_1.32fr] lg:px-6 lg:py-10">
+            <div className="relative z-10 min-w-0">
+              <div className="status-pill mb-4">
+                <span className="status-dot" />
+                ONCHAIN · LIVE
               </div>
-                <Text className="text-2xl font-bold text-blue-400">
-                  {activeTokens.length}
-                </Text>
-                <Text className="text-slate-400 text-sm">代币</Text>
-              </div>
-            </Card>
+              <h1 className="hero-title trade-hero-title">
+                Live markets
+              </h1>
 
-            <Card className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl">
-              <div className="text-center">
-                <div className="flex items-center justify-center space-x-2 mb-2">
-                  <TrophyOutlined className="text-yellow-400" />
-                  <Text className="text-yellow-300 font-medium">已毕业</Text>
-          </div>
-                <Text className="text-2xl font-bold text-yellow-400">
-                  {graduatedTokens.length}
-                                </Text>
-                <Text className="text-slate-400 text-sm">代币</Text>
-                              </div>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl">
-              <div className="text-center">
-                <div className="flex items-center justify-center space-x-2 mb-2">
-                  <RocketOutlined className="text-purple-400" />
-                  <Text className="text-purple-300 font-medium">总代币</Text>
-                            </div>
-                <Text className="text-2xl font-bold text-purple-400">
-                  {tokenList.length}
-                                </Text>
-                <Text className="text-slate-400 text-sm">代币</Text>
-                    </div>
-                  </Card>
-                    </div>
-
-                  {/* 搜索框区域 */}
-          <div className="mb-6">
-                    <Input
-                      placeholder="搜索代币名称、符号或地址..."
-                      prefix={<SearchOutlined className="text-slate-400" />}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400"
-              size="large"
-                    />
+              <div className="trade-kpi-grid">
+                {marketHighlights.map((item) => (
+                  <div key={item.label} className="trade-kpi-card">
+                    <span>{item.icon}</span>
+                    <small>{item.label}</small>
+                    <strong>{isLoading ? '—' : item.value}</strong>
                   </div>
-                  
-          {/* 代币列表 */}
-                    {loadingTokens ? (
-            <div className="flex flex-col justify-center items-center h-64">
-              <Spin size="large" />
-              <Text className="text-slate-300 mt-4">加载代币列表...</Text>
-                      </div>
-                    ) : filteredTokens.length === 0 ? (
-            <div className="flex justify-center items-center h-64">
-                        <Empty 
-                description={<Text className="text-slate-400">暂无代币</Text>}
-                          image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        />
-                      </div>
-                    ) : (
-            <div className="space-y-8">
-              {/* 活跃代币区域 */}
-              {activeTokens.length > 0 && (
-                <Card 
-                  style={{ marginBottom: '20px' }}
-                  className="rounded-2xl shadow-2xl border-slate-700 bg-slate-800/50"
-                  title={
-                    <div className="flex items-center space-x-2 text-white">
-                      <ThunderboltOutlined className="text-blue-400" />
-                      <span className="font-semibold">活跃交易代币</span>
-                      <Badge count={activeTokens.length} color="#3b82f6" />
-                      <Text className="text-slate-400 text-sm ml-2">
-                        (正在 Bonding Curve 交易中)
-                                  </Text>
+                ))}
+              </div>
+            </div>
+
+            <div className="relative z-10 min-w-0">
+              <div className="terminal-card trade-terminal-card">
+                <div className="terminal-topbar">
+                  <div className="flex items-center gap-3">
+                    <span className="terminal-logo"><BarChartOutlined /></span>
+                    <div>
+                      <div className="font-semibold text-white">Market overview</div>
                     </div>
-                  }
+                  </div>
+                  <span className="live-badge"><span /> LIVE</span>
+                </div>
+
+                <div className="terminal-summary trade-terminal-summary">
+                  <div>
+                    <span>All markets</span>
+                    <strong>{isLoading ? '—' : formatCompactNumber(tokenList.length)}</strong>
+                  </div>
+                  <div>
+                    <span>Trading</span>
+                    <strong>{isLoading ? '—' : formatCompactNumber(activeCount)}</strong>
+                  </div>
+                  <div>
+                    <span>Launched</span>
+                    <strong>{isLoading ? '—' : formatCompactNumber(graduatedCount)}</strong>
+                  </div>
+                </div>
+
+                <div className="market-table trade-market-preview">
+                  <div className="market-row market-heading">
+                    <span>Market</span><span>Price / ETH</span><span>24H</span><span>24H Volume</span><span>Market Cap</span>
+                  </div>
+                  {isLoading && <div className="market-empty">Syncing markets...</div>}
+                  {!isLoading && featuredMarkets.length === 0 && <div className="market-empty">No markets yet</div>}
+                  {!isLoading && featuredMarkets.map((market, index) => (
+                    <button
+                      type="button"
+                      key={market.address}
+                      className="market-row market-row-link trade-market-preview-row"
+                      onClick={() => router.push(`/trade/${market.address}`)}
+                    >
+                      <span className="market-pair">
+                        <span className={`token-orb token-orb-${(index % 4) + 1}`}>{market.symbol.slice(0, 1)}</span>
+                        <span>
+                          <strong>{market.symbol}</strong>
+                          <small>{market.graduated ? 'Launched' : market.name}</small>
+                        </span>
+                      </span>
+                      <span className="font-mono text-slate-200">{formatMarketPrice(market.currentPrice)}</span>
+                      <span className={`font-mono ${getPercentChangeClassName(market.priceChange24h)}`}>
+                        {formatPercentChange(market.priceChange24h)}
+                      </span>
+                      <MarketVolume value={market.volume24h} complete={market.volume24hComplete} />
+                      <span className="font-mono text-slate-300">{formatEthAmount(market.marketCap)}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  className="terminal-action w-full border-0 bg-transparent text-left"
+                  onClick={() => {
+                    const market = filteredTokens[0] || tokenList[0];
+                    if (market) {
+                      router.push(`/trade/${market.address}`);
+                    }
+                  }}
                 >
-                  <Row gutter={[16, 16]}>
-                    {activeTokens.map(renderTokenCard)}
-                  </Row>
-                </Card>
+                  Open top market <ArrowRightOutlined />
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 pb-16 lg:px-6 lg:pb-20">
+          <div className="trade-controls-bar">
+            <div>
+              <div className="trade-controls-title">Browse markets</div>
+            </div>
+
+            <div className="trade-controls-actions">
+              <div className="flex flex-wrap gap-2" role="tablist" aria-label="Market filters">
+                {filters.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setFilter(item.key)}
+                    className={`trade-filter-chip ${filter === item.key ? 'trade-filter-chip-active' : ''}`}
+                  >
+                    {item.label}
+                    <span>{item.count}</span>
+                  </button>
+                ))}
+              </div>
+
+              <Input
+                allowClear
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                prefix={<SearchOutlined className="text-slate-500" />}
+                placeholder="Search name, symbol, or address"
+                className="market-search"
+                size="large"
+              />
+            </div>
+          </div>
+
+          <div className="trade-results-meta">
+            <div className="trade-results-copy">
+              <strong>{filteredTokens.length}</strong> / {tokenList.length} markets
+            </div>
+          </div>
+
+          <section className="market-list-shell">
+            <div className="market-list-scroll">
+              <div className="market-list-row market-list-heading">
+                <span>Market</span><span>Price / ETH</span><span>24H</span><span>24H Volume</span><span>Market Cap</span><span>Status</span>
+              </div>
+
+              {isLoading && (
+                <div className="trade-state-block"><Spin /></div>
               )}
 
-              {/* 已毕业代币区域 */}
-              {graduatedTokens.length > 0 && (
-                <Card 
-                  className="rounded-2xl shadow-2xl border-yellow-500/30 bg-gradient-to-br from-yellow-900/10 to-amber-900/10"
-                  title={
-                    <div className="flex items-center space-x-2 text-white">
-                      <TrophyOutlined className="text-yellow-400" />
-                      <span className="font-semibold">已毕业代币</span>
-                      <Badge count={graduatedTokens.length} color="#eab308" />
-                      <Text className="text-slate-400 text-sm ml-2">
-                        (已迁移至 DEX 交易)
-                              </Text>
-                    </div>
-                  }
-                >
-                  <Row gutter={[16, 16]}>
-                    {graduatedTokens.map(renderTokenCard)}
-                  </Row>
-                </Card>
+              {!isLoading && error && (
+                <div className="trade-state-block px-6 text-center text-sm text-slate-500">
+                  Market data is temporarily unavailable
+                </div>
               )}
+
+              {!isLoading && !error && filteredTokens.length === 0 && (
+                <div className="trade-state-block">
+                  <Empty
+                    description={<span className="text-slate-500">No matching markets</span>}
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  />
+                </div>
+              )}
+
+              {!isLoading && !error && filteredTokens.map((token) => (
+                <button
+                  key={token.address}
+                  type="button"
+                  onClick={() => router.push(`/trade/${token.address}`)}
+                  className="market-list-row market-list-item"
+                >
+                  <span className="market-list-token">
+                    <span className="market-list-orb">{token.symbol.slice(0, 1)}</span>
+                    <span className="min-w-0">
+                      <strong>{token.symbol}</strong>
+                      <small>{token.name}</small>
+                    </span>
+                  </span>
+                  <span className="font-mono text-slate-200">{formatMarketPrice(token.currentPrice)}</span>
+                  <span className={`font-mono ${getPercentChangeClassName(token.priceChange24h)}`}>
+                    {formatPercentChange(token.priceChange24h)}
+                  </span>
+                  <MarketVolume value={token.volume24h} complete={token.volume24hComplete} />
+                  <span className="font-mono text-slate-300">{formatEthAmount(token.marketCap)}</span>
+                  <span className={token.graduated ? 'market-status-graduated' : 'market-status-active'}>
+                    {token.graduated ? <TrophyOutlined /> : <BarChartOutlined />}
+                    {token.graduated ? 'Launched' : 'Trading'}
+                  </span>
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+          </section>
+        </section>
       </Content>
     </Layout>
   );
@@ -462,15 +288,8 @@ function TradePageContent() {
 
 export default function TradePage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-400 border-t-transparent mx-auto mb-4"></div>
-          <Text className="text-slate-300 block mt-4 text-lg">加载交易页面...</Text>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-[#070b0e]"><Spin /></div>}>
       <TradePageContent />
     </Suspense>
   );
-} 
+}

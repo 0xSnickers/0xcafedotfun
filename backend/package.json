@@ -6,7 +6,15 @@
   "scripts": {
     "dev": "nodemon",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "market:reconcile": "tsx src/scripts/reconcileMarketFacts.ts",
+    "market:backfill-trades": "tsx src/scripts/backfillMarketTrades.ts",
+    "market:rebuild-candles": "tsx src/scripts/rebuildMarketCandles.ts",
+    "creator-fees:backfill": "tsx src/scripts/backfillCreatorFees.ts",
+    "creator-fees:reconcile": "tsx src/scripts/reconcileCreatorFees.ts",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "start": "tsx src/server.ts"
   },
   "keywords": [],
   "author": "",
@@ -14,17 +22,20 @@
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
-    "ethers": "^6.14.3",
+    "drizzle-orm": "^0.45.2",
     "express": "^5.1.0",
     "ioredis": "^5.6.1",
+    "pg": "^8.21.0",
+    "tsx": "^4.19.4",
     "viem": "^2.29.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.18",
     "@types/express": "^5.0.2",
     "@types/node": "^22.15.19",
+    "@types/pg": "^8.20.0",
+    "drizzle-kit": "^0.31.10",
     "nodemon": "^3.1.10",
-    "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
 }

@@ -11,7 +11,18 @@ import argparse
 from pathlib import Path
 
 
-def extract_contract_addresses(broadcast_file: str) -> dict:
+def parse_block_number(value) -> int | None:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value, 0)
+        except ValueError:
+            return None
+    return None
+
+
+def extract_contract_addresses(broadcast_file: str) -> tuple[dict, int | None]:
     """
     从broadcast日志中提取合约地址
     
@@ -19,7 +30,7 @@ def extract_contract_addresses(broadcast_file: str) -> dict:
         broadcast_file: broadcast日志文件路径
         
     Returns:
-        dict: 提取到的合约地址字典
+        tuple: 提取到的合约地址字典和最早部署区块
     """
     try:
         # 读取部署日志
@@ -28,7 +39,13 @@ def extract_contract_addresses(broadcast_file: str) -> dict:
         
         # 提取合约地址
         transactions = broadcast_data.get('transactions', [])
+        receipts_by_hash = {
+            receipt.get('transactionHash', '').lower(): receipt
+            for receipt in broadcast_data.get('receipts', [])
+            if receipt.get('transactionHash')
+        }
         contracts = {}
+        deployment_blocks = []
         
         for tx in transactions:
             if tx.get('transactionType') == 'CREATE':
@@ -36,26 +53,30 @@ def extract_contract_addresses(broadcast_file: str) -> dict:
                 contract_address = tx.get('contractAddress')
                 if contract_name and contract_address:
                     contracts[contract_name] = contract_address
+                receipt = receipts_by_hash.get(tx.get('hash', '').lower())
+                block_number = parse_block_number(receipt.get('blockNumber')) if receipt else None
+                if block_number is not None:
+                    deployment_blocks.append(block_number)
         
         if not contracts:
             print('❌ 未找到合约地址')
-            return {}
+            return {}, None
             
         print(f'✅ 成功提取 {len(contracts)} 个合约地址')
-        return contracts
+        return contracts, min(deployment_blocks) if deployment_blocks else None
         
     except FileNotFoundError:
         print(f'❌ 找不到broadcast文件: {broadcast_file}')
-        return {}
+        return {}, None
     except json.JSONDecodeError:
         print(f'❌ broadcast文件格式错误: {broadcast_file}')
-        return {}
+        return {}, None
     except Exception as e:
         print(f'❌ 提取合约地址失败: {e}')
-        return {}
+        return {}, None
 
 
-def update_frontend_env(contracts: dict, env_file: str = "frontend/.env.local") -> bool:
+def update_frontend_env(contracts: dict, chain_id: int, env_file: str = "frontend/.env.local") -> bool:
     """
     更新前端.env.local文件中的合约地址
     
@@ -77,13 +98,9 @@ def update_frontend_env(contracts: dict, env_file: str = "frontend/.env.local") 
         # 更新或添加合约地址
         updated_vars = {
             'NEXT_PUBLIC_MEME_FACTORY_ADDRESS': contracts.get('MemeFactory', ''),
-            'NEXT_PUBLIC_MEME_PLATFORM_ADDRESS': contracts.get('MemePlatform', ''),
-            'NEXT_PUBLIC_BONDING_CURVE_ADDRESS': contracts.get('BondingCurve', ''),
-            'NEXT_PUBLIC_FEE_MANAGER_ADDRESS': contracts.get('FeeManager', ''),
+            'NEXT_PUBLIC_FEE_VAULT_ADDRESS': contracts.get('FeeVault', ''),
             'NEXT_PUBLIC_LIQUIDITY_MANAGER_ADDRESS': contracts.get('LiquidityManager', ''),
-            # 'NEXT_PUBLIC_NETWORK_RPC': 'http://127.0.0.1:8545',
-            'NEXT_PUBLIC_NETWORK_RPC': 'http://192.168.5.34/:8545',
-            'NEXT_PUBLIC_CHAIN_ID': '31337'
+            'NEXT_PUBLIC_CHAIN_ID': str(chain_id)
         }
         
         # 创建新的环境变量列表
@@ -123,7 +140,12 @@ def update_frontend_env(contracts: dict, env_file: str = "frontend/.env.local") 
         return False
 
 
-def update_backend_env(contracts: dict, env_file: str = "backend/.env") -> bool:
+def update_backend_env(
+    contracts: dict,
+    deployment_start_block: int | None,
+    chain_id: int,
+    env_file: str = "backend/.env",
+) -> bool:
     """
     更新后端.env文件中的合约地址
     
@@ -144,9 +166,13 @@ def update_backend_env(contracts: dict, env_file: str = "backend/.env") -> bool:
         
         # 需要更新的后端环境变量
         updated_vars = {
-            'BONDING_CURVE_ADDRESS': contracts.get('BondingCurve', ''),
+            'CHAIN_ID': str(chain_id),
+            'MEME_FACTORY_ADDRESS': contracts.get('MemeFactory', ''),
+            'FEE_VAULT_ADDRESS': contracts.get('FeeVault', ''),
             'LIQUIDITY_MANAGER_ADDRESS': contracts.get('LiquidityManager', ''),
         }
+        if deployment_start_block is not None:
+            updated_vars['MARKET_INDEXER_START_BLOCK'] = str(deployment_start_block)
         
         # 创建新的环境变量列表
         new_env_lines = []
@@ -191,6 +217,7 @@ def main():
     parser.add_argument('broadcast_file', help='broadcast日志文件路径')
     parser.add_argument('--frontend-env', default='frontend/.env.local', help='前端.env.local文件路径')
     parser.add_argument('--backend-env', default='backend/.env', help='后端.env文件路径')
+    parser.add_argument('--chain-id', type=int, default=31337, help='部署目标 Chain ID')
     parser.add_argument('--quiet', '-q', action='store_true', help='静默模式')
     
     args = parser.parse_args()
@@ -199,16 +226,21 @@ def main():
         print('📝 正在提取合约地址...')
     
     # 提取合约地址
-    contracts = extract_contract_addresses(args.broadcast_file)
+    contracts, deployment_start_block = extract_contract_addresses(args.broadcast_file)
     
     if not contracts:
         sys.exit(1)
     
     # 更新前端环境文件
-    frontend_success = update_frontend_env(contracts, args.frontend_env)
+    frontend_success = update_frontend_env(contracts, args.chain_id, args.frontend_env)
     
     # 更新后端环境文件
-    backend_success = update_backend_env(contracts, args.backend_env)
+    backend_success = update_backend_env(
+        contracts,
+        deployment_start_block,
+        args.chain_id,
+        args.backend_env,
+    )
     
     if not frontend_success or not backend_success:
         sys.exit(1)
@@ -218,15 +250,20 @@ def main():
         print('\n📋 部署的合约地址:')
         for name, address in contracts.items():
             print(f'  {name}: {address}')
+        if deployment_start_block is not None:
+            print(f'  Deployment start block: {deployment_start_block}')
         
         print('\n🔄 地址同步状态:')
         print(f'  前端环境文件: {args.frontend_env} {"✅" if frontend_success else "❌"}')
         print(f'  后端环境文件: {args.backend_env} {"✅" if backend_success else "❌"}')
         
-        if contracts.get('BondingCurve') and contracts.get('LiquidityManager'):
+        if contracts.get('MemeFactory') and contracts.get('FeeVault') and contracts.get('LiquidityManager'):
             print('\n🎯 关键合约地址已同步:')
-            print(f'  BONDING_CURVE_ADDRESS: {contracts["BondingCurve"]}')
+            print(f'  MEME_FACTORY_ADDRESS: {contracts["MemeFactory"]}')
+            print(f'  FEE_VAULT_ADDRESS: {contracts["FeeVault"]}')
             print(f'  LIQUIDITY_MANAGER_ADDRESS: {contracts["LiquidityManager"]}')
+            if deployment_start_block is not None:
+                print(f'  MARKET_INDEXER_START_BLOCK: {deployment_start_block}')
 
 
 if __name__ == '__main__':

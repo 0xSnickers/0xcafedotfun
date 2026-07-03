@@ -1,24 +1,34 @@
-import { parseUnits, formatUnits } from 'ethers';
+import { formatUnits, parseUnits } from 'viem';
+import { defaultMainnetRpcUrl, defaultSepoliaRpcUrl, networkRpc } from '@/config/wagmi';
+
+export type SupportedChainId = 1 | 11155111 | 31337;
+
+const configuredChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID);
+
+export const DEFAULT_CHAIN_ID: SupportedChainId =
+  configuredChainId === 1 || configuredChainId === 11155111 || configuredChainId === 31337
+    ? configuredChainId
+    : 31337;
 
 // 合约地址配置
 export const CONTRACT_ADDRESSES = {
   // 主网地址（需要部署后更新）
   mainnet: {
     MEME_FACTORY: process.env.NEXT_PUBLIC_MEME_FACTORY_ADDRESS || '',
-    MEME_PLATFORM: process.env.NEXT_PUBLIC_MEME_PLATFORM_ADDRESS || '',
-    BONDING_CURVE: process.env.NEXT_PUBLIC_BONDING_CURVE_ADDRESS || '',
+    FEE_VAULT: process.env.NEXT_PUBLIC_FEE_VAULT_ADDRESS || '',
+    LIQUIDITY_MANAGER: process.env.NEXT_PUBLIC_LIQUIDITY_MANAGER_ADDRESS || '',
   },
   // Sepolia 测试网地址
   sepolia: {
     MEME_FACTORY: process.env.NEXT_PUBLIC_MEME_FACTORY_ADDRESS || '',
-    MEME_PLATFORM: process.env.NEXT_PUBLIC_MEME_PLATFORM_ADDRESS || '',
-    BONDING_CURVE: process.env.NEXT_PUBLIC_BONDING_CURVE_ADDRESS || '',
+    FEE_VAULT: process.env.NEXT_PUBLIC_FEE_VAULT_ADDRESS || '',
+    LIQUIDITY_MANAGER: process.env.NEXT_PUBLIC_LIQUIDITY_MANAGER_ADDRESS || '',
   },
   // 本地测试网地址
   localhost: {
     MEME_FACTORY: process.env.NEXT_PUBLIC_MEME_FACTORY_ADDRESS || '',
-    MEME_PLATFORM: process.env.NEXT_PUBLIC_MEME_PLATFORM_ADDRESS || '',
-    BONDING_CURVE: process.env.NEXT_PUBLIC_BONDING_CURVE_ADDRESS || '',
+    FEE_VAULT: process.env.NEXT_PUBLIC_FEE_VAULT_ADDRESS || '',
+    LIQUIDITY_MANAGER: process.env.NEXT_PUBLIC_LIQUIDITY_MANAGER_ADDRESS || '',
   },
 } as const;
 
@@ -27,19 +37,19 @@ export const NETWORK_CONFIG = {
   mainnet: {
     chainId: 1,
     name: 'Ethereum Mainnet',
-    rpcUrl: process.env.NEXT_PUBLIC_MAINNET_RPC_URL || '',
+    rpcUrl: process.env.NEXT_PUBLIC_MAINNET_RPC_URL || defaultMainnetRpcUrl,
     blockExplorer: 'https://etherscan.io',
   },
   sepolia: {
     chainId: 11155111,
     name: 'Sepolia Testnet',
-    rpcUrl: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || '',
+    rpcUrl: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || defaultSepoliaRpcUrl,
     blockExplorer: 'https://sepolia.etherscan.io',
   },
   localhost: {
     chainId: 31337,
     name: 'Local Testnet',
-    rpcUrl: process.env.NEXT_PUBLIC_NETWORK_RPC || '',
+    rpcUrl: process.env.NEXT_PUBLIC_NETWORK_RPC || networkRpc,
     blockExplorer: '',
   },
 } as const;
@@ -47,21 +57,21 @@ export const NETWORK_CONFIG = {
 // 合约常量
 export const CONTRACT_CONSTANTS = {
   // 平台费用（基点）
-  PLATFORM_FEE_PERCENTAGE: 200, // 2%
-  CREATOR_FEE_PERCENTAGE: 300,  // 3%
+  PLATFORM_FEE_PERCENTAGE: 100, // 1%
+  CREATOR_FEE_PERCENTAGE: 25,  // 0.25%
   FEE_BASE: 10000,
-  
+
   // ETH 相关常量
   ETH_DECIMALS: 18,
   ETH_SYMBOL: 'ETH',
-  
+
   // 毕业机制
   TARGET_MARKET_CAP: '10',      // 10 ETH 市值毕业门槛
-  
+
   // 价格范围（ETH）
   MIN_ETH_AMOUNT: '0.001',      // 最小 0.001 ETH
   MAX_ETH_AMOUNT: '10',         // 最大 10 ETH
-  
+
   // 代币创建参数范围
   MIN_INITIAL_PRICE: '0.0001',  // 最小初始价格 0.0001 ETH
   MAX_INITIAL_PRICE: '0.01',    // 最大初始价格 0.01 ETH
@@ -69,12 +79,12 @@ export const CONTRACT_CONSTANTS = {
   MAX_TARGET_PRICE: '1',        // 最大目标价格 1 ETH
   MIN_TARGET_SUPPLY: '100000',  // 最小目标供应量 10万
   MAX_TARGET_SUPPLY: '1000000000', // 最大目标供应量 10亿
-  
+
   // 默认代币创建参数（ETH）
   DEFAULT_TARGET_SUPPLY: '100000000',  // 1亿代币目标供应量 (仅用于价格计算)
   DEFAULT_TARGET_PRICE: '0.001',       // 0.001 ETH 目标价格
   DEFAULT_INITIAL_PRICE: '0.0000001',  // 0.0000001 ETH 初始价格
-  
+
   // 滑点保护
   DEFAULT_SLIPPAGE: 2, // 2%
   MAX_SLIPPAGE: 10,    // 10%
@@ -90,7 +100,7 @@ export function getContractAddresses(chainId?: number) {
     case 31337:
       return CONTRACT_ADDRESSES.localhost;
     default:
-      return CONTRACT_ADDRESSES.sepolia; // 默认使用 Sepolia
+      return getContractAddresses(DEFAULT_CHAIN_ID);
   }
 }
 
@@ -104,7 +114,7 @@ export function getNetworkConfig(chainId: number) {
     case 31337:
       return NETWORK_CONFIG.localhost;
     default:
-      return NETWORK_CONFIG.sepolia;
+      return getNetworkConfig(DEFAULT_CHAIN_ID);
   }
 }
 
@@ -127,4 +137,4 @@ export function isValidETHAmount(amount: string): boolean {
   } catch {
     return false;
   }
-} 
+}

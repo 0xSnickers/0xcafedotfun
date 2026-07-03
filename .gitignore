@@ -1,6 +1,7 @@
 # Compiler files
 cache/
 out/
+output/
 
 # Ignores development broadcast logs
 !/broadcast
@@ -8,7 +9,17 @@ out/
 /broadcast/**/dry-run/
 
 # Docs
-docs/
+docs/tmp/
+docs/local/
+.claude/
+.codex/
+.github/
+
+# Local system and backup files
+.DS_Store
+**/.DS_Store
+*.bak
 
 # Dotenv file
 .env
+.playwright-cli

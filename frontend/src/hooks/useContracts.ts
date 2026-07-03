@@ -1,8 +1,8 @@
 import { usePublicClient, useWalletClient, useChainId } from 'wagmi';
 import { getContract } from 'viem';
 import { getContractAddresses } from '../config/contracts';
-import { MEME_FACTORY_ABI, MEME_PLATFORM_ABI, MEME_TOKEN_ABI } from '../config/abis';
-import { parseEther, formatEther, parseUnits, formatUnits, keccak256, toBytes } from 'viem';
+import { MEME_FACTORY_ABI, MEME_TOKEN_ABI } from '../config/abis';
+import { keccak256, toBytes } from 'viem';
 
 // 合约操作类型定义
 export interface CreateTokenParams {
@@ -77,26 +77,6 @@ export function useMemeFactory() {
   }
 }
 
-// 使用 MemePlatform 合约
-export function useMemePlatform() {
-  const { publicClient, walletClient, addresses } = useContractBase();
-  
-  if (!addresses.MEME_PLATFORM || !publicClient) return null;
-  
-  try {
-    const contract = getContract({
-      address: addresses.MEME_PLATFORM as `0x${string}`,
-      abi: MEME_PLATFORM_ABI,
-      client: { public: publicClient, wallet: walletClient },
-    });
-    
-    return contract;
-  } catch (error) {
-    console.error('Failed to initialize MemePlatform contract:', error);
-    return null;
-  }
-}
-
 // 使用 MemeToken 合约
 export function useMemeToken(tokenAddress: string) {
   const { publicClient, walletClient } = useContractBase();
@@ -137,7 +117,7 @@ export function validateTokenParams(params: CreateTokenParams): string[] {
   }
   
   if (params.decimals < 0 || params.decimals > 18) {
-    errors.push('小数位数必须在0-18之间');
+    errors.push('Decimals must be between 0 and 18');
   }
   
   if (!params.totalSupply || Number(params.totalSupply) <= 0) {
@@ -153,7 +133,7 @@ export function validateTokenParams(params: CreateTokenParams): string[] {
   }
   
   if (!params.salt) {
-    errors.push('盐值不能为空');
+    errors.push('Salt is required');
   }
   
   return errors;

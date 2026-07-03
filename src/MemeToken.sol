@@ -1,101 +1,101 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract MemeToken is ERC20, Ownable {
-    uint8 private _decimals;
+contract MemeToken is ERC20 {
+    uint256 public constant MAX_TOKEN_IMAGE_BYTES = 256;
+    uint256 public constant MAX_TOKEN_DESCRIPTION_BYTES = 500;
+
+    address private immutable CREATOR;
+    address public minter;
+
     string private _tokenImage;
     string private _description;
-    address public minter; // 授权的铸造者地址（通常是 BondingCurve 合约）
-    uint256 public currentSupply;  // 当前已铸造供应量
-    
+
     event TokenImageUpdated(string newImage);
     event DescriptionUpdated(string newDescription);
     event MinterUpdated(address indexed newMinter);
-    
-    modifier onlyMinter() {
-        require(msg.sender == minter, "Not authorized minter");
+
+    error InvalidAddress();
+    error NotCreator();
+    error NotMinter();
+    error TokenMetadataTooLong();
+
+    modifier onlyCreator() {
+        _onlyCreator();
         _;
     }
-    
+
+    modifier onlyMinter() {
+        _onlyMinter();
+        _;
+    }
+
     constructor(
         string memory name,
         string memory symbol,
-        uint8 decimals_,
-        uint256 totalSupply,
-        address owner,
+        address creator_,
+        address minter_,
         string memory tokenImage_,
         string memory description_
-    ) ERC20(name, symbol) Ownable(owner) {
-        _decimals = decimals_;
+    ) ERC20(name, symbol) {
+        if (creator_ == address(0) || minter_ == address(0)) revert InvalidAddress();
+        _validateMetadata(tokenImage_, description_);
+
+        CREATOR = creator_;
+        minter = minter_;
         _tokenImage = tokenImage_;
         _description = description_;
-        minter = owner; // 初始化铸造者为合约所有者
-        // 对于 bonding curve 模式，不立即铸造所有代币
-        // _mint(owner, totalSupply); // 注释掉，改为按需铸造
     }
 
-    // @notice 设置授权铸造者（通常是 BondingCurve 合约）
-    function setMinter(address _minter) external onlyMinter {
-        minter = _minter;
-        emit MinterUpdated(_minter);
+    function _onlyCreator() internal view {
+        if (msg.sender != CREATOR) revert NotCreator();
     }
-    
-    // @notice 铸造代币（仅授权铸造者可调用）
+
+    function _onlyMinter() internal view {
+        if (msg.sender != minter) revert NotMinter();
+    }
+
     function mint(address to, uint256 amount) external onlyMinter {
         _mint(to, amount);
     }
 
-    // @notice 获取代币小数位
-    function decimals() public view virtual override returns (uint8) {
-        return _decimals;
-    }
-    
-    // @notice 获取代币图片
-    function tokenImage() public view returns (string memory) {
-        return _tokenImage;
-    }
-    
-    // @notice 获取代币描述
-    function description() public view returns (string memory) {
-        return _description;
-    }
-    
-    // @notice 更新代币图片
-    // @param newImage 新图片
-    function updateTokenImage(string memory newImage) external onlyOwner {
-        _tokenImage = newImage;
-        emit TokenImageUpdated(newImage);
-    }
-    
-    // @notice 更新代币描述
-    // @param newDescription 新描述
-    function updateDescription(string memory newDescription) external onlyOwner {
-        _description = newDescription;
-        emit DescriptionUpdated(newDescription);
-    }
-    
-    // @notice 销毁代币
-    // @param amount 销毁数量
-    function burn(uint256 amount) external {
+    function burnMarketBalance(uint256 amount) external onlyMinter {
         _burn(msg.sender, amount);
     }
-    
-    // @notice 从账户销毁代币
-    // @param account 账户地址
-    // @param amount 销毁数量
-    function burnFrom(address account, uint256 amount) external {
-        _spendAllowance(account, msg.sender, amount);
-        _burn(account, amount);
+
+    function setMinter(address newMinter) external onlyMinter {
+        minter = newMinter;
+        emit MinterUpdated(newMinter);
     }
 
-    function setCurrentSupply(uint256 newCurrentSupply) external onlyMinter {
-        currentSupply = newCurrentSupply;
+    function updateMetadata(string calldata image, string calldata metadataDescription) external onlyCreator {
+        _validateMetadata(image, metadataDescription);
+        _tokenImage = image;
+        _description = metadataDescription;
+        emit TokenImageUpdated(image);
+        emit DescriptionUpdated(metadataDescription);
     }
 
-    function getCurrentSupply() external view returns (uint256) {
-        return currentSupply;
+    function tokenImage() external view returns (string memory) {
+        return _tokenImage;
     }
-} 
+
+    function creator() external view returns (address) {
+        return CREATOR;
+    }
+
+    function description() external view returns (string memory) {
+        return _description;
+    }
+
+    function _validateMetadata(string memory image, string memory metadataDescription) internal pure {
+        if (
+            bytes(image).length > MAX_TOKEN_IMAGE_BYTES
+                || bytes(metadataDescription).length > MAX_TOKEN_DESCRIPTION_BYTES
+        ) {
+            revert TokenMetadataTooLong();
+        }
+    }
+}

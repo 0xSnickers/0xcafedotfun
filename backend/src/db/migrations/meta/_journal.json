@@ -1,0 +1,97 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1781343958964,
+      "tag": "0000_normal_red_wolf",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781345949268,
+      "tag": "0001_mysterious_starjammers",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781444943169,
+      "tag": "0002_busy_millenium_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781444988833,
+      "tag": "0003_clean_hydra",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781445284395,
+      "tag": "0004_wise_micromax",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781492387926,
+      "tag": "0005_aspiring_the_renegades",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781719200000,
+      "tag": "0006_creator_fee_indexing",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781719201000,
+      "tag": "0007_feevault_accruals",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781852645048,
+      "tag": "0008_early_sasquatch",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781852645049,
+      "tag": "0009_pool_reserves_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781852645050,
+      "tag": "0010_pool_reserve_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1782288000000,
+      "tag": "0011_official_token_markets",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1782374400000,
+      "tag": "0012_market_initial_price",
+      "breakpoints": true
+    }
+  ]
+}

@@ -15,7 +15,7 @@ shell/
 
 ### extract_contract_addresses.py
 
-从Forge的broadcast日志中提取合约地址并更新frontend/.env.local文件。
+从 Forge broadcast 日志提取正式版合约地址，并更新前端与后端环境文件。
 
 **用法:**
 ```bash
@@ -23,7 +23,9 @@ shell/
 ./shell/extract_contract_addresses.py <broadcast_file>
 
 # 指定自定义env文件
-./shell/extract_contract_addresses.py <broadcast_file> --env-file custom/.env
+./shell/extract_contract_addresses.py <broadcast_file> \
+  --frontend-env custom/frontend.env \
+  --backend-env custom/backend.env
 
 # 静默模式
 ./shell/extract_contract_addresses.py <broadcast_file> --quiet
@@ -59,9 +61,9 @@ shell/
 - ✅ 生成纯JSON格式文件
 - ✅ 支持自定义输出目录
 
-## 🚀 在local-deploy.sh中的使用
+## 🚀 在部署命令中的使用
 
-这些脚本被`local-deploy.sh`自动调用：
+这些脚本被 `npm run deploy:local` 和 `npm run deploy:sepolia` 自动调用：
 
 ```bash
 # 提取合约地址
@@ -71,14 +73,18 @@ shell/
 ./shell/extract_abi.py --quiet
 ```
 
+`deploy:local` 会同步到 `frontend/.env.local` 和 `backend/.env`。
+`deploy:sepolia` 会同步到 `frontend/.env.local.sepolia` 和 `backend/.env`。
+
 ## 📋 支持的合约
 
 目前支持以下合约的处理：
 
-- **MemeFactory** - Meme代币工厂合约
-- **MemePlatform** - 平台管理合约  
-- **BondingCurve** - 联合曲线合约
-- **MemeToken** - Meme代币合约
+- **MemeFactory** - 正式 Token / Market 工厂
+- **MemeToken** - 正式 Meme Token
+- **TokenMarket** - 每 Token 独立曲线市场
+- **FeeVault** - 平台费与 Creator Fee Pull Payment
+- **LiquidityManager** - 毕业登记、加池与 LP 锁定
 
 ## 🔧 依赖要求
 

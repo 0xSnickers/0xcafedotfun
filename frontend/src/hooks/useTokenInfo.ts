@@ -1,185 +1,324 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useAccount, useChainId } from 'wagmi';
-import { readContract } from '@wagmi/core';
-import { config } from '../config/wagmi';
-import { MEME_FACTORY_ABI, BONDING_CURVE_ABI, MEME_TOKEN_ABI } from '../config/abis';
-import { getContractAddresses } from '../config/contracts';
-import { bondingCurveUtils } from './useBondingCurve';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import {
+  getMarketConfig,
+  getMarketSummary,
+  parsePriceChangePercent,
+  type MarketSummary,
+} from '@/lib/marketApi';
+import { getPools } from '@/lib/poolsApi';
+import { getMarketState, getTokenMetadata, resolveMarketAddress } from '@/lib/market/tokenMarketClient';
+import { formatAssetValue, formatRawAssetValue } from '@/lib/formatters/market';
+import { useTokenBalance } from '@/hooks/useTokenBalance';
+import { isGraduationPendingStage, MARKET_STAGE } from '@/lib/marketStages';
 
-export interface DetailedTokenInfo {
-  // 基本信息
+export interface TradeTokenMeta {
   address: string;
   name: string;
   symbol: string;
-  decimals: number;
-  totalSupply: string;
-  description: string;
-  tokenImage: string;
   creator: string;
-  createdAt: string;
-  
-  // 价格信息
+  createdAt: number;
+  tokenImage: string;
+  description: string;
+}
+
+export interface TradeTokenDetails {
+  tokenAddress: string;
+  marketAddress: string;
+  creator: string;
   currentPrice: string;
+  marketCap: string;
   currentSupply: string;
   targetSupply: string;
-  targetPrice: string;
-  initialPrice: string;
-  
-  // 计算信息
-  marketCap: string;
-  progress: number;
-  isGraduated: boolean;
+  targetMarketCap: string;
+  totalRaised: string;
+  marketStage: 'bonding_curve_live' | 'graduated_pending_liquidity' | 'dex_live' | null;
+  graduated: boolean;
+  volume24h: string;
+  priceChange24h: number | null;
+  pairAddress: string | null;
+}
+
+const PRICE_CHANGE_PERCENT_SCALE = 100_000_000n;
+const PRICE_CHANGE_PERCENT_DISPLAY_SCALE = 1_000_000;
+const WARNING_COOLDOWN_MS = 30_000;
+const warningTimestamps = new Map<string, number>();
+const subscribeToClientSnapshot = () => () => undefined;
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+function useMountedClient() {
+  return useSyncExternalStore(subscribeToClientSnapshot, getClientSnapshot, getServerSnapshot);
+}
+
+function marketStageFromChain(stage: number): TradeTokenDetails['marketStage'] {
+  if (stage === MARKET_STAGE.ACTIVE) return 'bonding_curve_live';
+  if (isGraduationPendingStage(stage)) return 'graduated_pending_liquidity';
+  if (stage === MARKET_STAGE.DEX_LIVE) return 'dex_live';
+  return null;
+}
+
+function computeInitialPriceChangePercent(
+  currentPriceX18: bigint,
+  initialPriceX18: bigint,
+): number | null {
+  if (initialPriceX18 === 0n) return null;
+  const scaledPercent = ((currentPriceX18 - initialPriceX18) * PRICE_CHANGE_PERCENT_SCALE) / initialPriceX18;
+  return Number(scaledPercent) / PRICE_CHANGE_PERCENT_DISPLAY_SCALE;
+}
+
+function warnWithCooldown(key: string, message: string, error: unknown) {
+  const now = Date.now();
+  const lastWarningAt = warningTimestamps.get(key) ?? 0;
+  if (now - lastWarningAt < WARNING_COOLDOWN_MS) {
+    return;
+  }
+
+  warningTimestamps.set(key, now);
+  console.warn(message, error);
 }
 
 export function useTokenInfo(tokenAddress: string) {
-  const [tokenInfo, setTokenInfo] = useState<DetailedTokenInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  const { isConnected } = useAccount();
-  const chainId = useChainId();
+  const mounted = useMountedClient();
+  const [tokenDetails, setTokenDetails] = useState<TradeTokenDetails | null>(null);
+  const [tokenInfo, setTokenInfo] = useState<TradeTokenMeta | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+  const {
+    balance: tokenBalance,
+    isLoading: isTokenBalanceLoading,
+    refetch: refetchTokenBalance,
+  } = useTokenBalance(tokenAddress || '');
 
   const fetchTokenInfo = useCallback(async () => {
-    if (!isConnected || !tokenAddress || tokenAddress === '') {
-      setTokenInfo(null);
-      return;
-    }
+    if (!tokenAddress) return;
+    setLoading(true);
 
-    setIsLoading(true);
-    setError(null);
-    
+    let marketConfig: Awaited<ReturnType<typeof getMarketConfig>> | null = null;
+    let marketAddress: `0x${string}` | null = null;
+
     try {
-      const contractAddresses = getContractAddresses(chainId);
-      
-      if (!contractAddresses.MEME_FACTORY || !contractAddresses.BONDING_CURVE) {
-        throw new Error('Contract addresses not found');
-      }
-
-      console.log(`获取代币 ${tokenAddress} 的详细信息...`);
-
-      // 并行获取所有需要的信息
-      const [factoryInfo, curveParams, tokenName, tokenSymbol, tokenDecimals, totalSupply] = await Promise.all([
-        // 从工厂合约获取基本信息
-        readContract(config, {
-          address: contractAddresses.MEME_FACTORY as `0x${string}`,
-          abi: MEME_FACTORY_ABI,
-          functionName: 'getMemeTokenInfo',
-          args: [tokenAddress as `0x${string}`],
-        }),
-        // 从bonding curve获取价格信息
-        readContract(config, {
-          address: contractAddresses.BONDING_CURVE as `0x${string}`,
-          abi: BONDING_CURVE_ABI,
-          functionName: 'curveParams',
-          args: [tokenAddress as `0x${string}`],
-        }),
-        // 从代币合约获取基本ERC20信息
-        readContract(config, {
-          address: tokenAddress as `0x${string}`,
-          abi: MEME_TOKEN_ABI,
-          functionName: 'name',
-        }),
-        readContract(config, {
-          address: tokenAddress as `0x${string}`,
-          abi: MEME_TOKEN_ABI,
-          functionName: 'symbol',
-        }),
-        readContract(config, {
-          address: tokenAddress as `0x${string}`,
-          abi: MEME_TOKEN_ABI,
-          functionName: 'decimals',
-        }),
-        readContract(config, {
-          address: tokenAddress as `0x${string}`,
-          abi: MEME_TOKEN_ABI,
-          functionName: 'totalSupply',
-        }),
-      ]);
-
-      const factory = factoryInfo as any;
-      const curve = curveParams as any;
-      
-      console.log('代币信息:', { factory, curve, tokenName, tokenSymbol, tokenDecimals, totalSupply });
-
-      // 安全地格式化所有数值
-      const currentPrice = curve.currentPrice ? bondingCurveUtils.formatETH(curve.currentPrice) : '0';
-      const currentSupply = curve.currentSupply ? bondingCurveUtils.formatTokenDisplay(curve.currentSupply) : '0.0000';
-      const targetSupply = curve.targetSupply ? bondingCurveUtils.formatTokenDisplay(curve.targetSupply) : '0.0000';
-      const targetPrice = curve.targetPrice ? bondingCurveUtils.formatETH(curve.targetPrice) : '0';
-      const initialPrice = curve.initialPrice ? bondingCurveUtils.formatETH(curve.initialPrice) : '0';
-      const formattedTotalSupply = totalSupply ? bondingCurveUtils.formatTokenDisplay(totalSupply as bigint) : '0.0000';
-      
-      // 计算市值
-      let marketCap = '0';
       try {
-        if (curve.currentPrice && curve.currentSupply && 
-            curve.currentPrice !== BigInt(0) && curve.currentSupply !== BigInt(0)) {
-          const marketCapNum = parseFloat(currentPrice) * parseFloat(currentSupply);
-          marketCap = marketCapNum.toFixed(2);
-        }
-      } catch (calcError) {
-        console.warn('计算市值失败:', calcError);
-      }
-      
-      // 计算进度
-      let progress = 0;
-      let isGraduated = false;
-      try {
-        if (curve.currentSupply && curve.targetSupply && 
-            curve.targetSupply !== BigInt(0)) {
-          progress = Number((curve.currentSupply * BigInt(100)) / curve.targetSupply);
-          progress = Math.min(Math.max(progress, 0), 100);
-          isGraduated = progress >= 100;
-        }
-      } catch (progressError) {
-        console.warn('计算进度失败:', progressError);
+        marketConfig = await getMarketConfig(tokenAddress);
+        marketAddress = marketConfig.marketAddress as `0x${string}`;
+      } catch (error) {
+        console.warn('Failed to load market config, falling back to chain lookup:', error);
       }
 
-      const detailedInfo: DetailedTokenInfo = {
+      if (marketAddress === null) {
+        marketAddress = await resolveMarketAddress(tokenAddress as `0x${string}`, { skipConfigLookup: true });
+      }
+
+      const resolvedMarketConfig = marketConfig;
+      const resolvedMarketAddress = marketAddress;
+
+      let summary: MarketSummary | null = null;
+      try {
+        summary = await getMarketSummary(tokenAddress);
+      } catch (error) {
+        warnWithCooldown(
+          `${tokenAddress}:market-summary`,
+          'Failed to refresh market summary, continuing with config and cached UI state:',
+          error,
+        );
+      }
+
+      let state: Awaited<ReturnType<typeof getMarketState>> | null = null;
+      try {
+        state = await getMarketState(resolvedMarketAddress);
+      } catch (error) {
+        warnWithCooldown(
+          `${tokenAddress}:live-market-state`,
+          'Failed to load live market state, keeping summary/config fallback:',
+          error,
+        );
+      }
+
+      let tokenMetadata: Awaited<ReturnType<typeof getTokenMetadata>> | null = null;
+      if (!resolvedMarketConfig?.name || !resolvedMarketConfig?.symbol) {
+        try {
+          tokenMetadata = await getTokenMetadata(tokenAddress as `0x${string}`);
+        } catch (error) {
+          warnWithCooldown(
+            `${tokenAddress}:token-metadata`,
+            'Failed to load token metadata from chain, keeping config/previous fallback:',
+            error,
+          );
+        }
+      }
+
+      const summaryPriceChange24h = summary !== null
+        ? parsePriceChangePercent(summary.priceChangePercent24h)
+        : null;
+
+      const chainFallbackPriceChange24h = state !== null
+        ? computeInitialPriceChangePercent(state.currentPriceX18, state.initialPriceX18)
+        : null;
+
+      const resolvedMarketStage =
+        (state ? marketStageFromChain(state.stage) : null) ??
+        summary?.marketStage ??
+        resolvedMarketConfig?.stage ??
+        null;
+      let poolLiquidity: string | null = null;
+
+      if (
+        resolvedMarketStage === 'dex_live' &&
+        (summary?.liquidityQuote === null || summary?.liquidityQuote === undefined)
+      ) {
+        try {
+          const pools = await getPools({ limit: 200 });
+          const pool = pools.find(
+            (item) => item.tokenAddress.toLowerCase() === tokenAddress.toLowerCase(),
+          );
+          poolLiquidity = pool?.liquidityQuote === null || pool?.liquidityQuote === undefined
+            ? null
+            : formatAssetValue(pool.liquidityQuote, { group: false });
+        } catch (error) {
+          warnWithCooldown(
+            `${tokenAddress}:pool-liquidity`,
+            'Failed to load DEX pool liquidity fallback:',
+            error,
+          );
+        }
+      }
+
+      setTokenInfo((previous) => ({
         address: tokenAddress,
-        name: (tokenName as string) || factory.name || 'Unknown Token',
-        symbol: (tokenSymbol as string) || factory.symbol || 'UNK',
-        decimals: Number(tokenDecimals) || 18,
-        totalSupply: formattedTotalSupply,
-        description: factory.description || '',
-        tokenImage: factory.tokenImage || '',
-        creator: factory.creator || '0x0000000000000000000000000000000000000000',
-        createdAt: factory.createdAt ? new Date(Number(factory.createdAt) * 1000).toISOString() : new Date().toISOString(),
-        
-        currentPrice,
-        currentSupply,
-        targetSupply,
-        targetPrice,
-        initialPrice,
-        
-        marketCap,
-        progress,
-        isGraduated,
-      };
+        name:
+          resolvedMarketConfig?.name ||
+          tokenMetadata?.name ||
+          (previous?.address === tokenAddress ? previous.name : '') ||
+          'Unnamed Token',
+        symbol:
+          resolvedMarketConfig?.symbol ||
+          tokenMetadata?.symbol ||
+          (previous?.address === tokenAddress ? previous.symbol : '') ||
+          'TOKEN',
+        creator: resolvedMarketConfig?.creatorAddress || state?.creator || previous?.creator || '',
+        createdAt: 0,
+        tokenImage: resolvedMarketConfig?.tokenImage || '',
+        description: resolvedMarketConfig?.description || '',
+      }));
+      setTokenDetails((previous) => {
+        const creator = resolvedMarketConfig?.creatorAddress || state?.creator || previous?.creator || '';
+        const marketStage =
+          resolvedMarketStage ??
+          previous?.marketStage ??
+          null;
+        const dexLiquidity =
+          marketStage === 'dex_live' && summary?.liquidityQuote !== null && summary?.liquidityQuote !== undefined
+            ? formatRawAssetValue(summary.liquidityQuote, 18, { group: false })
+            : marketStage === 'dex_live'
+              ? poolLiquidity
+            : null;
 
-      console.log('格式化后的代币信息:', detailedInfo);
-      setTokenInfo(detailedInfo);
-      
-    } catch (err) {
-      console.error('获取代币信息失败:', err);
-      setError(err instanceof Error ? err.message : '未知错误');
-      setTokenInfo(null);
+        return {
+          tokenAddress,
+          marketAddress: resolvedMarketAddress,
+          creator,
+          currentPrice:
+            state !== null
+              ? formatRawAssetValue(state.currentPriceX18, 18, { group: false })
+              : previous?.tokenAddress === tokenAddress
+                ? previous.currentPrice
+                : '0.0',
+          marketCap:
+            state !== null
+              ? formatRawAssetValue(state.currentMarketCap, 18, { group: false })
+              : previous?.tokenAddress === tokenAddress
+                ? previous.marketCap
+                : '0.0',
+          currentSupply:
+            state !== null
+              ? formatRawAssetValue(state.curveSupply, 18, { group: false })
+              : previous?.tokenAddress === tokenAddress
+                ? previous.currentSupply
+                : '0.0',
+          targetSupply:
+            state !== null
+              ? formatRawAssetValue(state.targetSupply, 18, { group: false })
+              : previous?.tokenAddress === tokenAddress
+                ? previous.targetSupply
+                : '0.0',
+          targetMarketCap:
+            state !== null
+              ? formatRawAssetValue(state.graduationMarketCap, 18, { group: false })
+              : previous?.tokenAddress === tokenAddress
+                ? previous.targetMarketCap
+                : '0.0',
+          totalRaised:
+            dexLiquidity ??
+            (state !== null
+              ? formatRawAssetValue(state.reserveBalance, 18, { group: false })
+              : previous?.tokenAddress === tokenAddress
+                ? previous.totalRaised
+                : '0.0'),
+          marketStage,
+          graduated: marketStage === 'dex_live',
+          volume24h:
+            summary !== null
+              ? formatRawAssetValue(summary.volume24h, 18, { group: false })
+              : previous?.tokenAddress === tokenAddress
+                ? previous.volume24h
+                : '0.0',
+          priceChange24h:
+            summaryPriceChange24h ??
+            chainFallbackPriceChange24h ??
+            (previous?.tokenAddress === tokenAddress ? previous.priceChange24h : null),
+          pairAddress:
+            summary?.pairAddress ??
+            resolvedMarketConfig?.pairAddress ??
+            (previous?.tokenAddress === tokenAddress ? previous.pairAddress : null),
+        };
+      });
+    } catch (error) {
+      console.error('Failed to load formal market data:', error);
+      if (marketAddress === null) {
+        setTokenInfo(null);
+        setTokenDetails(null);
+      }
     } finally {
-      setIsLoading(false);
+      setLoading(false);
+      setInitialDataLoaded(true);
     }
-  }, [isConnected, chainId, tokenAddress]);
+  }, [tokenAddress]);
 
-  // 自动获取代币信息
   useEffect(() => {
-    fetchTokenInfo();
-  }, [fetchTokenInfo]);
+    if (!mounted || !tokenAddress) return;
+
+    let cancelled = false;
+    let timer: number | null = null;
+
+    const poll = async () => {
+      await fetchTokenInfo();
+      if (cancelled) return;
+      timer = window.setTimeout(() => void poll(), 5_000);
+    };
+
+    void poll();
+
+    return () => {
+      cancelled = true;
+      if (timer !== null) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [fetchTokenInfo, mounted, tokenAddress]);
+
 
   return {
+    mounted,
+    wagmiReady: mounted,
+    isReady: mounted,
     tokenInfo,
-    isLoading,
-    error,
-    refetch: fetchTokenInfo
+    tokenDetails,
+    loading,
+    initialDataLoaded,
+    tokenBalance,
+    isTokenBalanceLoading,
+    refetchTokenBalance,
+    refetch: fetchTokenInfo,
   };
-} 
+}

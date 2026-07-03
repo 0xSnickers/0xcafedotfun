@@ -11,7 +11,8 @@ import {
   DollarOutlined
 } from '@ant-design/icons';
 import Link from 'next/link';
-import { useBondingCurve, bondingCurveUtils } from '../hooks/useBondingCurve';
+import Image from 'next/image';
+import { useMarket, marketUtils } from '../hooks/useMarket';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -39,7 +40,7 @@ export default function TokenCard({
   const [isHovered, setIsHovered] = useState(false);
   
   // 获取代币的Bonding Curve信息
-  const { curveParams, isCurveParamsLoading, curveParamsError } = useBondingCurve(tokenAddress);
+  const { curveParams, isCurveParamsLoading, error: curveParamsError } = useMarket(tokenAddress);
 
   // 检查是否有有效的curve数据
   const hasValidCurveData = curveParams && !curveParamsError;
@@ -70,7 +71,7 @@ export default function TokenCard({
       const currentPrice = curveParams.currentPrice;
       
       if (currentPrice === BigInt(0)) return '0.000001';
-      return bondingCurveUtils.formatETH(currentPrice);
+      return marketUtils.formatETH(currentPrice);
     } catch (error) {
       console.warn('Error formatting current price:', error);
       return '0.000001';
@@ -86,7 +87,7 @@ export default function TokenCard({
       const currentPrice = curveParams.currentPrice;
       
       const marketCap = (currentSupply * currentPrice) / BigInt('1000000000000000000');
-      return bondingCurveUtils.formatETH(marketCap);
+      return marketUtils.formatETH(marketCap);
     } catch (error) {
       console.warn('Error calculating market cap:', error);
       return '0';
@@ -100,7 +101,7 @@ export default function TokenCard({
     try {
       const currentSupply = curveParams.currentSupply;
       
-      return bondingCurveUtils.formatToken(currentSupply);
+      return marketUtils.formatToken(currentSupply);
     } catch (error) {
       console.warn('Error formatting total supply:', error);
       return '0';
@@ -110,19 +111,19 @@ export default function TokenCard({
   // 获取状态标签
   const getStatusTag = () => {
     if (!hasValidCurveData) {
-      return <Tag color="gray">数据加载中</Tag>;
+      return <Tag color="gray">Loading</Tag>;
     }
     
     const progress = getProgress();
     
     if (progress >= 100) {
-      return <Tag color="gold" icon={<TrophyOutlined />}>已毕业</Tag>;
+      return <Tag color="gold" icon={<TrophyOutlined />}>Launched</Tag>;
     } else if (progress >= 80) {
-      return <Tag color="orange" icon={<FireOutlined />}>即将毕业</Tag>;
+      return <Tag color="orange" icon={<FireOutlined />}>Near launch</Tag>;
     } else if (progress >= 50) {
-      return <Tag color="blue" icon={<LineChartOutlined />}>活跃交易</Tag>;
+      return <Tag color="blue" icon={<LineChartOutlined />}>Active</Tag>;
     } else {
-      return <Tag color="green">新项目</Tag>;
+      return <Tag color="green">New</Tag>;
     }
   };
 
@@ -140,11 +141,14 @@ export default function TokenCard({
         className={`w-full max-w-sm transition-all duration-300 ${className}`}
       cover={
           image ? (
-            <div className="h-48 overflow-hidden">
-              <img
+            <div className="relative h-48 overflow-hidden">
+              <Image
                 alt={name}
                 src={image}
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 640px) 100vw, 384px"
+                unoptimized
+                className="object-cover"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = '/default-token.png';
                 }}
@@ -164,7 +168,7 @@ export default function TokenCard({
               block
               size="large"
             >
-              交易
+              Trade
             </Button>
           </Link>
         ]}
@@ -180,13 +184,13 @@ export default function TokenCard({
                   ${symbol}
                 </Text>
               </div>
-              <Tag color="gray">数据加载失败</Tag>
+              <Tag color="gray">Data unavailable</Tag>
             </div>
           }
           description={
             <div className="space-y-3">
               <Paragraph 
-                ellipsis={{ rows: 2, expandable: true, symbol: '更多' }}
+                ellipsis={{ rows: 2, expandable: true, symbol: 'More' }}
                 className="!mb-2 text-gray-600"
               >
                 {description}
@@ -194,13 +198,13 @@ export default function TokenCard({
               
               <div className="bg-gray-50 rounded-lg p-3 text-center">
                 <Text type="secondary" className="text-sm">
-                  暂时无法加载代币数据
+                  Token data is temporarily unavailable
                 </Text>
               </div>
 
               <div className="flex justify-between items-center pt-2 border-t border-gray-100">
                 <div>
-                  <Text className="text-xs text-gray-500">创作者</Text>
+                  <Text className="text-xs text-gray-500">Creator</Text>
                   <br />
                   <Tooltip title={creator}>
                     <Text className="text-sm font-mono">
@@ -211,7 +215,7 @@ export default function TokenCard({
                 
                 {createdAt && (
                   <div className="text-right">
-                    <Text className="text-xs text-gray-500">创建时间</Text>
+                    <Text className="text-xs text-gray-500">Created</Text>
                     <br />
                     <Text className="text-sm">
                       {new Date(createdAt).toLocaleDateString()}
@@ -237,11 +241,14 @@ export default function TokenCard({
       onMouseLeave={() => setIsHovered(false)}
       cover={
         image ? (
-          <div className="h-48 overflow-hidden">
-            <img
+          <div className="relative h-48 overflow-hidden">
+            <Image
               alt={name}
               src={image}
-              className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
+              fill
+              sizes="(max-width: 640px) 100vw, 384px"
+              unoptimized
+              className="object-cover transition-transform duration-300 hover:scale-110"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = '/default-token.png';
               }}
@@ -261,7 +268,7 @@ export default function TokenCard({
             block
             size="large"
         >
-          交易
+          Trade
           </Button>
         </Link>
       ]}
@@ -284,7 +291,7 @@ export default function TokenCard({
           <div className="space-y-3">
         {/* 描述 */}
         <Paragraph 
-              ellipsis={{ rows: 2, expandable: true, symbol: '更多' }}
+              ellipsis={{ rows: 2, expandable: true, symbol: 'More' }}
               className="!mb-2 text-gray-600"
         >
               {description}
@@ -293,7 +300,7 @@ export default function TokenCard({
             {/* 价格信息 */}
             <div className="bg-gray-50 rounded-lg p-3 space-y-2">
               <div className="flex justify-between items-center">
-                <Text className="text-sm text-gray-500">当前价格</Text>
+                <Text className="text-sm text-gray-500">Current price</Text>
                 <Text strong className="text-green-600">
                   <Text className="text-white text-lg font-semibold">
                     {getCurrentPrice()} ETH
@@ -302,7 +309,7 @@ export default function TokenCard({
               </div>
               
               <div className="flex justify-between items-center">
-                <Text className="text-sm text-gray-500">市值</Text>
+                <Text className="text-sm text-gray-500">Market cap</Text>
                 <Text strong>
                   <Text className="text-white text-sm">
                     {getMarketCap()} ETH
@@ -311,7 +318,7 @@ export default function TokenCard({
               </div>
               
               <div className="flex justify-between items-center">
-                <Text className="text-sm text-gray-500">流通供应量</Text>
+                <Text className="text-sm text-gray-500">Circulating supply</Text>
                 <Text className="text-sm">
                   {getTotalSupply()}
                 </Text>
@@ -321,7 +328,7 @@ export default function TokenCard({
             {/* 进度条 */}
             <div className="space-y-1">
               <div className="flex justify-between items-center">
-                <Text className="text-sm text-gray-500">毕业进度</Text>
+                <Text className="text-sm text-gray-500">Launch</Text>
                 <Text className="text-sm font-medium">
                   {getProgress().toFixed(1)}%
                 </Text>
@@ -340,7 +347,7 @@ export default function TokenCard({
             {/* 创作者信息 */}
             <div className="flex justify-between items-center pt-2 border-t border-gray-100">
               <div>
-                <Text className="text-xs text-gray-500">创作者</Text>
+                <Text className="text-xs text-gray-500">Creator</Text>
                 <br />
                 <Tooltip title={creator}>
                   <Text className="text-sm font-mono">
@@ -351,7 +358,7 @@ export default function TokenCard({
 
               {createdAt && (
                 <div className="text-right">
-                  <Text className="text-xs text-gray-500">创建时间</Text>
+                  <Text className="text-xs text-gray-500">Created</Text>
                   <br />
                   <Text className="text-sm">
                     {new Date(createdAt).toLocaleDateString()}
@@ -368,7 +375,7 @@ export default function TokenCard({
                 icon={<DollarOutlined />}
                 className="flex-1"
               >
-                买入
+                Buy
               </Button>
               <Button 
                 size="small" 
@@ -376,7 +383,7 @@ export default function TokenCard({
                 icon={<LineChartOutlined />}
                 className="flex-1"
               >
-                图表
+                Chart
               </Button>
             </div>
       </div>
